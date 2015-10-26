@@ -20,19 +20,21 @@ import org.eclipse.core.runtime.IPath;
 
 import com.salesforce.ide.core.model.Component;
 
-public class ComponentStorage implements IStorage {
+class ComponentStorage implements IStorage {
 
-	Component component;
+	private final Component component;
 
-	public ComponentStorage(Component component) {
+	ComponentStorage(Component component) {
 		this.component = component;
 	}
 
-	public InputStream getContents() throws CoreException {
+	@Override
+    public InputStream getContents() throws CoreException {
 		return new ByteArrayInputStream(component.getFile());
 	}
 
-	public IPath getFullPath() {
+	@Override
+    public IPath getFullPath() {
 		IFile file = component.getFileResource();
 		if (file == null) {
 			return null;
@@ -40,16 +42,18 @@ public class ComponentStorage implements IStorage {
 		return file.getFullPath();
 	}
 
-	public String getName() {
+	@Override
+    public String getName() {
 		return component.getName();
 	}
 
-	public boolean isReadOnly() {
+	@Override
+    public boolean isReadOnly() {
 		return true;
 	}
 
-	@SuppressWarnings("unchecked")
-	public Object getAdapter(Class adapter) {
+	@Override
+    public Object getAdapter(@SuppressWarnings("rawtypes") Class adapter) {
 		return null;
 	}
 }

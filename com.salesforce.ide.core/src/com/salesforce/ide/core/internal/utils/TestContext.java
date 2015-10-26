@@ -36,6 +36,7 @@ public class TestContext {
     };
 
     private static Runnable closeDialogRunnables = new Runnable() {
+        @Override
         public void run() {
             try {
                 Thread.sleep(1000);
@@ -55,6 +56,7 @@ public class TestContext {
     };
 
     private static Runnable yesToQestionDialogRunnable = new Runnable() {
+        @Override
         public void run() {
             try {
                 Thread.sleep(1000);
@@ -95,7 +97,7 @@ public class TestContext {
             new TestContext(TestContextEnum.SAVE_TO_SERVER, new Runnable[] { yesToQestionDialogRunnable });
     public final static TestContext NONE = new TestContext(TestContextEnum.NONE, null);
 
-    private static Map<TestContextEnum, TestContext> testCtxMap = new HashMap<TestContextEnum, TestContext>();
+    private static Map<TestContextEnum, TestContext> testCtxMap = new HashMap<>();
     static {
         testCtxMap.put(TestContextEnum.DEPLOY_TO_SERVER, DEPLOY_TO_SERVER);
         testCtxMap.put(TestContextEnum.SAVE_TO_SERVER, SAVE_TO_SERVER);

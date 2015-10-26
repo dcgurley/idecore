@@ -18,12 +18,12 @@ import org.eclipse.core.resources.IProject;
 import org.eclipse.core.resources.IResource;
 import org.eclipse.core.runtime.CoreException;
 import org.eclipse.core.runtime.IProgressMonitor;
-import org.eclipse.core.runtime.NullProgressMonitor;
 import org.eclipse.core.runtime.SubProgressMonitor;
 import org.eclipse.swt.widgets.Display;
 import org.eclipse.team.core.TeamException;
 import org.eclipse.team.core.subscribers.Subscriber;
 import org.eclipse.team.core.synchronize.SyncInfo;
+import org.eclipse.team.core.synchronize.SyncInfoSet;
 import org.eclipse.team.core.variants.IResourceVariantComparator;
 import org.eclipse.team.ui.TeamUI;
 import org.eclipse.team.ui.synchronize.ISynchronizeManager;
@@ -35,35 +35,35 @@ import org.eclipse.ui.PlatformUI;
 import com.salesforce.ide.core.internal.utils.Constants;
 import com.salesforce.ide.core.internal.utils.ForceExceptionUtils;
 import com.salesforce.ide.core.internal.utils.Utils;
-import com.salesforce.ide.core.project.ForceProjectException;
 import com.salesforce.ide.ui.internal.utils.UIMessages;
 
 public class ComponentSubscriber extends Subscriber {
 
     static final Logger logger = Logger.getLogger(ComponentSubscriber.class);
 
-    protected IProject project = null;
-    protected SyncController syncController = null;
+    private SyncController syncController = null;
+    private SyncInfoSet syncInfoSet;
 
-    public ComponentSubscriber(IProject project, List<IResource> syncResources) throws ForceProjectException {
+    public ComponentSubscriber(IProject project, List<IResource> syncResources) {
         super();
-        this.project = project;
         syncController = new SyncController(project, syncResources);
     }
 
-    public SyncController getSyncController() {
+    public SyncInfoSet getSyncInfoSet() {
+        return this.syncInfoSet;
+    }
+
+    @Override
+    public void collectOutOfSync(IResource[] resources, int depth, SyncInfoSet set, IProgressMonitor monitor) {
+        this.syncInfoSet = set;
+        super.collectOutOfSync(resources, depth, set, monitor);
+    }
+
+    SyncController getSyncController() {
         return syncController;
     }
 
-    public IProject getProject() {
-        return project;
-    }
-
-    public void setProject(IProject project) {
-        this.project = project;
-    }
-
-    protected void loadRemoteComponents(IProgressMonitor monitor) throws TeamException {
+    void loadRemoteComponents(IProgressMonitor monitor) throws TeamException {
         try {
             syncController.loadRemoteComponents(monitor);
         } catch (Exception e) {
@@ -79,7 +79,7 @@ public class ComponentSubscriber extends Subscriber {
 
     @Override
     public IResourceVariantComparator getResourceComparator() {
-        return syncController.getResourceComparator();
+        return new ComponentVariantComparator();
     }
 
     @Override
@@ -111,15 +111,11 @@ public class ComponentSubscriber extends Subscriber {
         }
     }
 
-    public void refresh() throws TeamException {
-        refresh(null, 0, new NullProgressMonitor());
-    }
-
-    public void refresh(IProgressMonitor monitor) throws TeamException {
+    void refresh(IProgressMonitor monitor) throws TeamException {
         refresh(null, 0, monitor);
     }
 
-    public void refresh(IResource[] resources, IProgressMonitor monitor) throws TeamException {
+    void refresh(IResource[] resources, IProgressMonitor monitor) throws TeamException {
         refresh(resources, 0, monitor);
     }
 
@@ -145,6 +141,7 @@ public class ComponentSubscriber extends Subscriber {
         final ISynchronizeManager manager = TeamUI.getSynchronizeManager();
         Display display = PlatformUI.getWorkbench().getDisplay();
         display.asyncExec(new Runnable() {
+            @Override
             public void run() {
                 ISynchronizeView view = manager.showSynchronizeViewInActivePage();
                 ISynchronizeParticipant participant = view.getParticipant();

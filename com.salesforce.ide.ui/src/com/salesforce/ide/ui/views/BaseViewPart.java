@@ -14,10 +14,8 @@ import org.eclipse.swt.graphics.Image;
 import org.eclipse.ui.part.ViewPart;
 
 import com.salesforce.ide.core.internal.context.ContainerDelegate;
-import com.salesforce.ide.core.project.ForceProjectException;
 import com.salesforce.ide.core.services.LoggingService;
 import com.salesforce.ide.core.services.ProjectService;
-import com.salesforce.ide.core.services.RunTestsService;
 import com.salesforce.ide.core.services.ServiceLocator;
 import com.salesforce.ide.ui.internal.ForceImages;
 
@@ -26,7 +24,7 @@ public abstract class BaseViewPart extends ViewPart {
     protected ServiceLocator serviceLocator = null;
 
     //   C O N S T R U C T O R
-    public BaseViewPart() throws ForceProjectException {
+    public BaseViewPart() {
         super();
 
         serviceLocator = ContainerDelegate.getInstance().getServiceLocator();
@@ -43,10 +41,6 @@ public abstract class BaseViewPart extends ViewPart {
 
     public LoggingService getLoggingService() {
         return serviceLocator.getLoggingService();
-    }
-
-    public RunTestsService getRunTestsService() {
-        return serviceLocator.getRunTestsService();
     }
 
     protected Image getImage() {

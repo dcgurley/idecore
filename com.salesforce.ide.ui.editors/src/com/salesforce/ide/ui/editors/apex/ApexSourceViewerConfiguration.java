@@ -40,29 +40,25 @@ import org.eclipse.jface.text.rules.Token;
 import org.eclipse.jface.text.source.Annotation;
 import org.eclipse.jface.text.source.IAnnotationHover;
 import org.eclipse.jface.text.source.ISourceViewer;
-import org.eclipse.swt.SWT;
 import org.eclipse.swt.graphics.RGB;
 import org.eclipse.swt.widgets.Shell;
-import org.eclipse.ui.PlatformUI;
 import org.eclipse.ui.editors.text.TextSourceViewerConfiguration;
 import org.eclipse.ui.texteditor.ITextEditor;
 
 import com.salesforce.ide.core.internal.context.ContainerDelegate;
-import com.salesforce.ide.core.project.ForceProjectException;
 import com.salesforce.ide.ui.editors.ForceIdeEditorsPlugin;
 import com.salesforce.ide.ui.editors.apex.assistance.ApexAutoIndentStrategy;
 import com.salesforce.ide.ui.editors.apex.assistance.ApexCodeScanner;
-import com.salesforce.ide.ui.editors.apex.assistance.ApexCompletionProcessor;
-import com.salesforce.ide.ui.editors.apex.assistance.ApexDocCompletionProcessor;
 import com.salesforce.ide.ui.editors.apex.assistance.ApexDocScanner;
 import com.salesforce.ide.ui.editors.apex.assistance.ApexDoubleClickSelector;
 import com.salesforce.ide.ui.editors.apex.util.ApexCodeColorProvider;
+import com.salesforce.ide.ui.editors.internal.apex.completions.ApexCompletionCollector;
 
 /**
  * Source viewer configuration for Apex editor.
  * 
  * @author nchen
- *
+ * 
  */
 @SuppressWarnings({ "restriction" })
 public class ApexSourceViewerConfiguration extends TextSourceViewerConfiguration {
@@ -73,7 +69,7 @@ public class ApexSourceViewerConfiguration extends TextSourceViewerConfiguration
     private ApexCodeScanner apexCodeScanner = null;
     private ApexDocScanner apexDocScanner = null;
     private ApexCodeColorProvider apexCodeColorProvider = null;
-    private ApexCompletionProcessor apexCompletionProcessor = null;
+    private ApexCompletionCollector apexCompletionCollector = null;
 
     /**
      * Single token scanner.
@@ -84,35 +80,23 @@ public class ApexSourceViewerConfiguration extends TextSourceViewerConfiguration
         }
     }
 
-    @SuppressWarnings({ "unused" })
-    private ApexSourceViewerConfiguration() {
-
-    }
+    public ApexSourceViewerConfiguration() {}
 
     /**
      * Default constructor.
-     * 
-     * @throws ForceProjectException
      */
-    public ApexSourceViewerConfiguration(IPreferenceStore preferenceStore, ITextEditor editor)
-            throws ForceProjectException {
+    public ApexSourceViewerConfiguration(IPreferenceStore preferenceStore, ITextEditor editor) {
         super(preferenceStore);
         fTextEditor = editor;
         apexCodeScanner = (ApexCodeScanner) ContainerDelegate.getInstance().getBean(ApexCodeScanner.class);
         apexDocScanner = (ApexDocScanner) ContainerDelegate.getInstance().getBean(ApexDocScanner.class);
-        apexCompletionProcessor = new ApexCompletionProcessor();
-
+        apexCompletionCollector = new ApexCompletionCollector(fTextEditor);
         apexCodeColorProvider = ForceIdeEditorsPlugin.getApexCodeColorProvider();
-        // register part listener for editor tab change (update fileName that
-        // ApexCompletionProcessor associated w/)
-        PlatformUI.getWorkbench().getActiveWorkbenchWindow().getPartService()
-                .addPartListener(ApexCompletionProcessor.getPartListener());
     }
 
     public void init(IProject project) {
         apexCodeScanner.init(project);
         apexDocScanner.init();
-        apexCompletionProcessor.setProject(project);
     }
 
     @Override
@@ -177,8 +161,9 @@ public class ApexSourceViewerConfiguration extends TextSourceViewerConfiguration
     @Override
     public IInformationControlCreator getInformationControlCreator(ISourceViewer sourceViewer) {
         return new IInformationControlCreator() {
+            @Override
             public IInformationControl createInformationControl(Shell parent) {
-                return new DefaultInformationControl(parent, SWT.NONE, new HTMLTextPresenter(true));
+                return new DefaultInformationControl(parent, new HTMLTextPresenter(true));
             }
         };
     }
@@ -205,18 +190,15 @@ public class ApexSourceViewerConfiguration extends TextSourceViewerConfiguration
 
     @Override
     public IContentAssistant getContentAssistant(ISourceViewer sourceViewer) {
-
         ContentAssistant assistant = new ContentAssistant();
 
         assistant.setDocumentPartitioning(getConfiguredDocumentPartitioning(sourceViewer));
-        if (apexCompletionProcessor != null) {
-            assistant.setContentAssistProcessor(apexCompletionProcessor, IDocument.DEFAULT_CONTENT_TYPE);
-            apexCompletionProcessor.setContentAssistant(assistant);
+
+        if (apexCompletionCollector != null) {
+            assistant.setContentAssistProcessor(apexCompletionCollector, IDocument.DEFAULT_CONTENT_TYPE);
         }
 
-        assistant.setContentAssistProcessor(new ApexDocCompletionProcessor(), ApexPartitionScanner.APEX_DOC);
         assistant.enableAutoActivation(true);
-        assistant.setAutoActivationDelay(500);
         assistant.setProposalPopupOrientation(IContentAssistant.PROPOSAL_STACKED);
         assistant.setContextInformationPopupOrientation(IContentAssistant.CONTEXT_INFO_BELOW);
         assistant.setShowEmptyList(true); // display no proposal when code assist is triggered by ctrl+space, but display nothing when triggered by auto-activation
@@ -226,13 +208,16 @@ public class ApexSourceViewerConfiguration extends TextSourceViewerConfiguration
         }
 
         assistant.addCompletionListener(new ICompletionListener() {
+            @Override
             public void assistSessionEnded(ContentAssistEvent event) {
-                ((ApexCompletionProcessor) event.assistant.getContentAssistProcessor(IDocument.DEFAULT_CONTENT_TYPE))
+                ((ApexCompletionCollector) event.assistant.getContentAssistProcessor(IDocument.DEFAULT_CONTENT_TYPE))
                         .clearState();
             }
 
+            @Override
             public void assistSessionStarted(ContentAssistEvent event) {}
 
+            @Override
             public void selectionChanged(ICompletionProposal proposal, boolean smartToggle) {}
         });
 

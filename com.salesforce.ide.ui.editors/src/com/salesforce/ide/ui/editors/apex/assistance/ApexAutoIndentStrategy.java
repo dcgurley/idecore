@@ -11,6 +11,8 @@
 package com.salesforce.ide.ui.editors.apex.assistance;
 
 import org.apache.log4j.Logger;
+import org.eclipse.core.runtime.Platform;
+import org.eclipse.core.runtime.preferences.IPreferencesService;
 import org.eclipse.jface.preference.IPreferenceStore;
 import org.eclipse.jface.text.BadLocationException;
 import org.eclipse.jface.text.DefaultIndentLineAutoEditStrategy;
@@ -18,6 +20,8 @@ import org.eclipse.jface.text.DocumentCommand;
 import org.eclipse.jface.text.IDocument;
 import org.eclipse.jface.text.IRegion;
 import org.eclipse.jface.text.TextUtilities;
+import org.eclipse.ui.editors.text.EditorsUI;
+import org.eclipse.ui.texteditor.AbstractDecoratedTextEditorPreferenceConstants;
 
 import com.salesforce.ide.core.internal.utils.Utils;
 import com.salesforce.ide.ui.editors.ForceIdeEditorsPlugin;
@@ -30,9 +34,44 @@ import com.salesforce.ide.ui.editors.internal.utils.EditorMessages;
 public class ApexAutoIndentStrategy extends DefaultIndentLineAutoEditStrategy {
 
     private static final Logger logger = Logger.getLogger(ApexAutoIndentStrategy.class);
+    
+    private String indent;
 
     public ApexAutoIndentStrategy() {
-
+        
+        indent = indentStringFromEditorsUIPreferences();
+    }
+    
+    /**
+     * Returns the String to use for indenting based on the General/Editors/Text Editors preferences
+     * that are respected by the underlying platform editing code.
+     * 
+     * @return the String to use for indenting
+     */
+    private static String indentStringFromEditorsUIPreferences() {
+        
+        IPreferencesService ps = Platform.getPreferencesService();
+        boolean spacesForTabs = ps.getBoolean(
+                EditorsUI.PLUGIN_ID,
+                AbstractDecoratedTextEditorPreferenceConstants.EDITOR_SPACES_FOR_TABS,
+                false,
+                null
+                );
+        if (spacesForTabs) {
+            int tabWidth = ps.getInt(
+                    EditorsUI.PLUGIN_ID,
+                    AbstractDecoratedTextEditorPreferenceConstants.EDITOR_TAB_WIDTH,
+                    4,
+                    null
+                    );
+            StringBuilder sb = new StringBuilder(tabWidth);
+            for (int i = 0; i < tabWidth; i++) {
+                sb.append(" ");
+            }
+            return sb.toString();
+        } else {
+            return "\t";
+        }
     }
 
     /*
@@ -57,7 +96,7 @@ public class ApexAutoIndentStrategy extends DefaultIndentLineAutoEditStrategy {
      * @return <code>true</code> if <code>txt</code> ends with one of the document's line delimiters,
      *         <code>false</code> otherwise
      */
-    private boolean endsWithDelimiter(IDocument d, String txt) {
+    private static boolean endsWithDelimiter(IDocument d, String txt) {
         String[] delimiters = d.getLegalLineDelimiters();
         if (delimiters != null) {
             return TextUtilities.endsWith(delimiters, txt) > -1;
@@ -119,7 +158,7 @@ public class ApexAutoIndentStrategy extends DefaultIndentLineAutoEditStrategy {
      * @throws BadLocationException
      *             in case the positions are invalid in the document
      */
-    private int getBracketCount(IDocument document, int start, int end, boolean ignoreCloseBrackets)
+    private static int getBracketCount(IDocument document, int start, int end, boolean ignoreCloseBrackets)
             throws BadLocationException {
 
         int begin = start;
@@ -190,7 +229,7 @@ public class ApexAutoIndentStrategy extends DefaultIndentLineAutoEditStrategy {
      * @throws BadLocationException
      *             in case <code>position</code> and <code>end</code> are invalid in the document
      */
-    private int getCommentEnd(IDocument document, int position, int end) throws BadLocationException {
+    private static int getCommentEnd(IDocument document, int position, int end) throws BadLocationException {
         int currentPosition = position;
         while (currentPosition < end) {
             char curr = document.getChar(currentPosition);
@@ -240,7 +279,7 @@ public class ApexAutoIndentStrategy extends DefaultIndentLineAutoEditStrategy {
      * @throws BadLocationException
      *             in case <code>position</code> is invalid in the document
      */
-    private int getStringEnd(IDocument document, int position, int end, char character) throws BadLocationException {
+    private static int getStringEnd(IDocument document, int position, int end, char character) throws BadLocationException {
         int currentPosition = position;
         while (currentPosition < end) {
             char currentCharacter = document.getChar(currentPosition);
@@ -287,7 +326,7 @@ public class ApexAutoIndentStrategy extends DefaultIndentLineAutoEditStrategy {
             if (getBracketCount(document, 0, docLength, false) > 0 && closeBraces
                     && (document.getChar(lastChar) == '{')) {
                 buf.append(document.get(start, whiteend - start));
-                buf.append('\t');
+                buf.append(indent);
                 command.caretOffset = command.offset + buf.length();
                 command.shiftsCaret = false;
                 buf.append('\n');
@@ -302,7 +341,7 @@ public class ApexAutoIndentStrategy extends DefaultIndentLineAutoEditStrategy {
             } else {
                 buf.append(document.get(start, whiteend - start));
                 if (getBracketCount(document, start, command.offset, true) > 0) {
-                    buf.append('\t');
+                    buf.append(indent);
                 }
             }
             command.text = buf.toString();
@@ -360,7 +399,7 @@ public class ApexAutoIndentStrategy extends DefaultIndentLineAutoEditStrategy {
         return ForceIdeEditorsPlugin.getDefault().getPreferenceStore();
     }
 
-    protected int findLastNonWhiteSpace(IDocument document, int offset, int end) throws BadLocationException {
+    protected int findLastNonWhiteSpace(IDocument document, int offset, int end) {
         try {
             IRegion region = document.getLineInformationOfOffset(offset);
 

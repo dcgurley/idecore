@@ -39,7 +39,7 @@ public class TemplateRegistry {
     private String templateDepotLocation = DEFAULT_TEMPLATE_DEPOT_LOCATION;
     private int maxCustomTemplates = 1;
     private String customPrefix = "Custom";
-    private final Map<String, Map<String, String>> templateRegistryMap = new HashMap<String, Map<String, String>>();
+    private final Map<String, Map<String, String>> templateRegistryMap = new HashMap<>();
 
     //   C O N S T R U C T O R
     public TemplateRegistry() {}
@@ -213,7 +213,7 @@ public class TemplateRegistry {
                 }
             }
 
-            if (Utils.isEmpty(templateName)) {
+            if (null == templateName || 0 == templateName.length()) {
                 logger.warn("Unable to add " + file.getAbsolutePath()
                     + " - unable to determine template name and/or max custom templates reached");
                 continue;
@@ -277,7 +277,7 @@ public class TemplateRegistry {
 
         Map<String, String> componentTemplates = getTemplatesByComponentType(componentType);
         if (Utils.isEmpty(componentTemplates)) {
-            componentTemplates = new HashMap<String, String>();
+            componentTemplates = new HashMap<>();
             templateRegistryMap.put(componentType, componentTemplates);
         }
 
@@ -303,6 +303,7 @@ public class TemplateRegistry {
         File[] templates = null;
         if (directory.exists()) {
             templates = directory.listFiles(new FilenameFilter() {
+                @Override
                 public boolean accept(File dir, String name) {
                     return Utils.isNotEmpty(name) && name.endsWith("." + templateExtension);
                 }

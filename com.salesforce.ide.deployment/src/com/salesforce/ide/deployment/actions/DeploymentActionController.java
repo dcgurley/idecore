@@ -11,11 +11,8 @@
 package com.salesforce.ide.deployment.actions;
 
 import org.apache.log4j.Logger;
-import org.eclipse.core.resources.IProject;
-import org.eclipse.jface.action.IAction;
 import org.eclipse.jface.viewers.IStructuredSelection;
 import org.eclipse.jface.wizard.WizardDialog;
-import org.eclipse.ui.IWorkbenchWindow;
 
 import com.salesforce.ide.core.internal.utils.Utils;
 import com.salesforce.ide.core.project.ForceProjectException;
@@ -24,23 +21,18 @@ import com.salesforce.ide.deployment.ui.wizards.DeploymentWizard;
 import com.salesforce.ide.ui.actions.ActionController;
 
 public class DeploymentActionController extends ActionController {
-    private static final Logger logger = Logger.getLogger(DeploymentAction.class);
+    private static final Logger logger = Logger.getLogger(DeploymentActionController.class);
 
-    public DeploymentActionController() throws ForceProjectException {
+    public DeploymentActionController() {
         super();
     }
 
-    public DeploymentActionController(IProject project, IWorkbenchWindow window) {
-        super(project, window);
-    }
-
     @Override
-    public boolean preRun(IAction action) {
+    public boolean preRun() {
         boolean hasDeployableComponents = getServiceLocator().getProjectService().hasManagedComponents(selectedResources);
         if (!hasDeployableComponents) {
-            logger.warn(DeploymentMessages.getString("DeploymentAction.NoDeployable.message"));
-            Utils.openWarn(DeploymentMessages.getString("DeploymentAction.NoDeployable.title"), DeploymentMessages
-                    .getString("DeploymentAction.NoDeployable.message"));
+            logger.warn(DeploymentMessages.getString("Deployment.NoDeployable.message"));
+            Utils.openWarn(DeploymentMessages.getString("Deployment.NoDeployable.title"), DeploymentMessages.getString("Deployment.NoDeployable.message"));
             return false;
         }
 
@@ -56,5 +48,5 @@ public class DeploymentActionController extends ActionController {
     }
 
     @Override
-    public void postRun(IAction action) {}
+    public void postRun() {}
 }

@@ -117,12 +117,11 @@ public class MarkerUtils {
      * 
      * @param resource
      */
-    @SuppressWarnings("unchecked")
     public void applyDirty(IResource resource, String markerId, String msg) {
         if (isDirty(resource, markerId)) {
             return;
         }
-        Map attributes = new HashMap(4);
+        Map<String, Object> attributes = new HashMap<>(4);
 
         attributes.put(IMarker.MESSAGE, msg);
         // marker line numbers are 1-based: we set the marker arbitrarily on the first line
@@ -186,7 +185,7 @@ public class MarkerUtils {
         }
 
         String message = Messages.getString("Markers.CompilationPrefix.message") + " " + msg;
-        Map<String, Object> attributes = new HashMap<String, Object>();
+        Map<String, Object> attributes = new HashMap<>();
         attributes.put(IMarker.MESSAGE, message);
         attributes.put(IMarker.LINE_NUMBER, line);
         attributes.put(IMarker.SEVERITY, severity);
@@ -226,7 +225,7 @@ public class MarkerUtils {
         String message =
                 Messages.getString(severity == IMarker.SEVERITY_ERROR ? "Markers.SavePrefix.Error.message"
                         : "Markers.SavePrefix.Warning.message") + " " + msg;
-        Map<String, Object> attributes = new HashMap<String, Object>();
+        Map<String, Object> attributes = new HashMap<>();
         attributes.put(IMarker.MESSAGE, message);
         attributes.put(IMarker.LINE_NUMBER, line);
         attributes.put(IMarker.SEVERITY, severity);
@@ -280,7 +279,7 @@ public class MarkerUtils {
         }
 
         String message = Messages.getString("Markers.RetrievePrefix.message") + " " + msg;
-        Map<String, Object> attributes = new HashMap<String, Object>();
+        Map<String, Object> attributes = new HashMap<>();
         attributes.put(IMarker.MESSAGE, message);
         attributes.put(IMarker.LINE_NUMBER, line);
         attributes.put(IMarker.SEVERITY, severity);
@@ -316,7 +315,7 @@ public class MarkerUtils {
             return;
         }
 
-        Map<String, Object> attributes = new HashMap<String, Object>();
+        Map<String, Object> attributes = new HashMap<>();
         attributes.put(IMarker.MESSAGE, msg);
         attributes.put(IMarker.LINE_NUMBER, line);
         attributes.put(IMarker.SEVERITY, IMarker.SEVERITY_ERROR);
@@ -340,7 +339,7 @@ public class MarkerUtils {
             return;
         }
 
-        Map<String, Object> attributes = new HashMap<String, Object>();
+        Map<String, Object> attributes = new HashMap<>();
         attributes.put(IMarker.MESSAGE, msg);
         attributes.put(IMarker.LINE_NUMBER, line);
         attributes.put(IMarker.SEVERITY, IMarker.SEVERITY_ERROR);
@@ -448,7 +447,7 @@ public class MarkerUtils {
         }
     }
 
-    private ISchedulingRule getRule(IResource resource) {
+    private static ISchedulingRule getRule(IResource resource) {
         IWorkspace workspace = ResourcesPlugin.getWorkspace();
         IResourceRuleFactory ruleFactory = workspace.getRuleFactory();
         ISchedulingRule rule = ruleFactory.markerRule(resource.getProject());
@@ -522,7 +521,7 @@ public class MarkerUtils {
         clearMarkers(resource, null, MarkerUtils.MARKER_COMPILE_ERROR);
     }
 
-    public void clearSaveMarkers(List<IResource> resources) {
+    public void clearSaveMarkers(IResource[] resources) {
         if (Utils.isEmpty(resources)) {
             logger.warn("Unable to clear save markers on resources - resources is null or empty ");
             return;
@@ -532,7 +531,7 @@ public class MarkerUtils {
             clearSaveMarkers(resource);
         }
     }
-
+    
     public void clearSaveMarkers(IResource resource) {
         clearMarkers(resource, null, MarkerUtils.MARKER_SAVE_ERROR);
     }

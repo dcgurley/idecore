@@ -32,13 +32,13 @@ public class NetworkConnectionProxyService implements com.salesforce.ide.core.in
     class ToolkitProxyChangeListener implements IProxyChangeListener {
 
         private IProxyService proxyService = null;
-        private ServiceTracker tracker = null;
+        private ServiceTracker<IProxyService, IProxyService> tracker = null;
 
         public void init() {
-            tracker = new ServiceTracker(ForceIdeCorePlugin.getDefault().getBundle().getBundleContext(),
+            tracker = new ServiceTracker<>(ForceIdeCorePlugin.getDefault().getBundle().getBundleContext(),
                     IProxyService.class.getName(), null);
             tracker.open();
-            proxyService = (IProxyService) tracker.getService();
+            proxyService = tracker.getService();
 
             if (proxyService == null) {
                 logger.warn("Unable to set proxy settings - IProxyService is not available");
@@ -64,6 +64,7 @@ public class NetworkConnectionProxyService implements com.salesforce.ide.core.in
             }
         }
 
+        @Override
         public void proxyInfoChanged(IProxyChangeEvent event) {
             if (proxyService == null || event == null) {
                 logger.warn("Unable to update proxy settings - IProxyService or event is not available");
@@ -113,6 +114,7 @@ public class NetworkConnectionProxyService implements com.salesforce.ide.core.in
         toolkitProxyChangeListener.init();
     }
 
+    @Override
     public void dispose() {
         disposeListeners();
     }
@@ -123,6 +125,7 @@ public class NetworkConnectionProxyService implements com.salesforce.ide.core.in
         }
     }
 
+    @Override
     public IProxy getProxy() {
         return proxy;
     }

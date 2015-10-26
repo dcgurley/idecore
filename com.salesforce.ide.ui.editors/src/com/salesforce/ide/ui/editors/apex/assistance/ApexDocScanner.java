@@ -66,7 +66,7 @@ public class ApexDocScanner extends RuleBasedScanner {
 
         setDefaultReturnToken(new Token(doc));
 
-        List<IRule> list = new ArrayList<IRule>();
+        List<IRule> list = new ArrayList<>();
 
         // Add rule for tags.
         list.add(new SingleLineRule("<", ">", tag));
@@ -83,10 +83,12 @@ public class ApexDocScanner extends RuleBasedScanner {
         if (Utils.isNotEmpty(docKeywords)) {
             // Add word rule for keywords.
             WordRule wordRule = new WordRule(new IWordDetector() {
+                @Override
                 public boolean isWordStart(char c) {
                     return (c == '@');
                 }
 
+                @Override
                 public boolean isWordPart(char c) {
                     return Character.isLetter(c);
                 }

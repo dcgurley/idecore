@@ -18,23 +18,10 @@ import org.apache.log4j.Logger;
 import org.eclipse.jface.dialogs.DialogPage;
 import org.eclipse.jface.preference.PreferenceDialog;
 import org.eclipse.swt.SWT;
-import org.eclipse.swt.events.ModifyEvent;
-import org.eclipse.swt.events.ModifyListener;
-import org.eclipse.swt.events.SelectionEvent;
-import org.eclipse.swt.events.SelectionListener;
+import org.eclipse.swt.events.*;
 import org.eclipse.swt.layout.GridData;
 import org.eclipse.swt.layout.GridLayout;
-import org.eclipse.swt.widgets.Button;
-import org.eclipse.swt.widgets.Combo;
-import org.eclipse.swt.widgets.Composite;
-import org.eclipse.swt.widgets.Control;
-import org.eclipse.swt.widgets.Event;
-import org.eclipse.swt.widgets.Group;
-import org.eclipse.swt.widgets.Label;
-import org.eclipse.swt.widgets.Link;
-import org.eclipse.swt.widgets.Listener;
-import org.eclipse.swt.widgets.Spinner;
-import org.eclipse.swt.widgets.Text;
+import org.eclipse.swt.widgets.*;
 import org.eclipse.ui.PlatformUI;
 import org.eclipse.ui.dialogs.PreferencesUtil;
 
@@ -43,9 +30,7 @@ import com.salesforce.ide.core.internal.preferences.proxy.ProxyManager;
 import com.salesforce.ide.core.internal.utils.Constants;
 import com.salesforce.ide.core.internal.utils.Utils;
 import com.salesforce.ide.core.remote.SalesforceEndpoints;
-import com.salesforce.ide.ui.internal.utils.UIConstants;
-import com.salesforce.ide.ui.internal.utils.UIMessages;
-import com.salesforce.ide.ui.internal.utils.UIUtils;
+import com.salesforce.ide.ui.internal.utils.*;
 import com.salesforce.ide.ui.properties.ProjectPropertyComposite;
 
 /**
@@ -170,6 +155,7 @@ public abstract class BaseOrganizationComposite extends BaseComposite {
         txtToken = new Text(grpOrg, SWT.BORDER | SWT.PASSWORD);
         txtToken.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false, 1, 0));
         txtToken.setSize(30, 1);
+        addValidateModifyListener(txtToken);
         addOrgModifyListener(txtToken);
 
         // SessionId, if using internal mode
@@ -188,17 +174,19 @@ public abstract class BaseOrganizationComposite extends BaseComposite {
         createEnvironmentControls(grpOrg, projectCreateWizardFlag);
     }
 
-    private void createSignupLink(final Group grpOrg) {
+    private static void createSignupLink(final Group grpOrg) {
         Link lnkProxySettings = new Link(grpOrg, SWT.NONE);
         lnkProxySettings.setText(UIMessages.getString(UIConstants.LABEL_SIGNUP_LINK));
         lnkProxySettings.setLayoutData(new GridData(SWT.BEGINNING, SWT.CENTER, true, false, 1, 0));
         final String urlStr = UIConstants.NEW_ORG_CREATE_LINK;
         lnkProxySettings.setData(urlStr);
         lnkProxySettings.addSelectionListener(new SelectionListener() {
+            @Override
             public void widgetSelected(SelectionEvent e) {
                 widgetDefaultSelected(e);
             }
 
+            @Override
             public void widgetDefaultSelected(SelectionEvent e) {
                 try {
                     URL url = new URL((String) e.widget.getData());
@@ -232,11 +220,13 @@ public abstract class BaseOrganizationComposite extends BaseComposite {
         }
 
         cmbEnvironment.addSelectionListener(new SelectionListener() {
+            @Override
             public void widgetDefaultSelected(SelectionEvent e) {
                 enableServerEntryControls();
                 validateUserInput();
             }
 
+            @Override
             public void widgetSelected(SelectionEvent e) {
                 widgetDefaultSelected(e);
             }
@@ -349,10 +339,12 @@ public abstract class BaseOrganizationComposite extends BaseComposite {
         lnkProxySettings.setText(UIMessages.getString(UIConstants.PROXY_LABEL));
         lnkProxySettings.setLayoutData(new GridData(SWT.BEGINNING, SWT.CENTER, true, false, 5, 0));
         lnkProxySettings.addSelectionListener(new SelectionListener() {
+            @Override
             public void widgetSelected(SelectionEvent e) {
                 widgetDefaultSelected(e);
             }
 
+            @Override
             public void widgetDefaultSelected(SelectionEvent e) {
                 ProxyManager proxyManager = PreferenceManager.getInstance().getProxyManager();
                 PreferenceDialog dialog = null;
@@ -410,6 +402,7 @@ public abstract class BaseOrganizationComposite extends BaseComposite {
 
     protected void addOrgModifyListener(Control control) {
         control.addListener(SWT.Modify, new Listener() {
+            @Override
             public void handleEvent(Event event) {
                 handleOrgChange();
             }
@@ -418,6 +411,7 @@ public abstract class BaseOrganizationComposite extends BaseComposite {
 
     protected void addOrgModifyListener(Combo combo) {
         combo.addModifyListener(new ModifyListener() {
+            @Override
             public void modifyText(ModifyEvent e) {
                 handleOrgChange();
             }
@@ -426,10 +420,12 @@ public abstract class BaseOrganizationComposite extends BaseComposite {
 
     protected void addOrgSelectionListener(Button btn) {
         btn.addSelectionListener(new SelectionListener() {
+            @Override
             public void widgetDefaultSelected(SelectionEvent e) {
                 handleOrgChange();
             }
 
+            @Override
             public void widgetSelected(SelectionEvent e) {
                 widgetDefaultSelected(e);
             }

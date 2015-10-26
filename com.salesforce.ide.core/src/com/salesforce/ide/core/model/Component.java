@@ -10,9 +10,9 @@
  ******************************************************************************/
 package com.salesforce.ide.core.model;
 
-import java.io.UnsupportedEncodingException;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.HashMap;
@@ -44,6 +44,7 @@ import com.sforce.soap.metadata.FileProperties;
 public class Component extends ComponentResource {
 
     private static final Logger logger = Logger.getLogger(Component.class);
+    private static final Charset UTF_8 = Charset.forName(Constants.UTF_8);
 
     protected String defaultFolder;
     protected String componentType;
@@ -59,7 +60,6 @@ public class Component extends ComponentResource {
     protected String name;
     protected String fileName;
     protected String fullName;
-    protected String body;
     protected String apiVersion;
     protected String webComponentTypeUrlPart;
     protected String webComponentUrlPart;
@@ -107,6 +107,7 @@ public class Component extends ComponentResource {
         super();
     }
 
+    @Override
     public String getDefaultFolder() {
         if (Utils.isEmpty(defaultFolder)) {
             return getName();
@@ -114,14 +115,17 @@ public class Component extends ComponentResource {
         return defaultFolder;
     }
 
+    @Override
     public String getFileExtension() {
         return fileExtension;
     }
 
+    @Override
     public String getComponentType() {
         return componentType;
     }
 
+    @Override
     public String getComponentTypeAlias() {
         return componentTypeAlias;
     }
@@ -138,6 +142,7 @@ public class Component extends ComponentResource {
         this.displayName = displayName;
     }
 
+    @Override
     public String getDisplayName() {
         return componentType.equals(Constants.FOLDER) && Utils.isNotEmpty(secondaryComponentType)
                 ? secondaryComponentType + " " + displayName : displayName;
@@ -167,18 +172,12 @@ public class Component extends ComponentResource {
         this.componentTypeAlias = componenttTypeAlias;
     }
 
-    public String getBody() {
-        return body;
-    }
-
-    public void setBody(String body) {
-        this.body = Utils.trim(body);
-    }
-
-    public void setBody(byte[] file) {
-        if (file == null) {
+    @Override
+    public final String getBody() {
+        final byte[] content = getFile();
+        if (null == content) {
             logger.warn("Unable to set component body - file byte array is null");
-            return;
+            return null;
         }
 
         // don't get body for, say, binary types; metadata files are always text (see static resources)
@@ -186,23 +185,18 @@ public class Component extends ComponentResource {
             if (logger.isInfoEnabled()) {
                 logger.info("Skipping body content setting - component type '" + componentType + "' is not text based");
             }
-            return;
+            return null;
         }
 
-        try {
-            String unicodeStr = new String(file, Constants.UTF_8);
-
-            if (isCodeBody()) {
-                unicodeStr = unicodeStr.replaceAll("\r\n", "\n");
-            }
-
-            setBody(Utils.trim(unicodeStr));
-        } catch (UnsupportedEncodingException e) {
-            setBody(Utils.trim(new String(file)));
-            logger.warn("Unable to set body: " + e.getMessage());
-        }
+        return new String(content, UTF_8);
     }
 
+    @Override
+    public final void setBody(String body) {
+        setFile(null == body ? null : body.getBytes(UTF_8));
+    }
+
+    @Override
     public String getId() {
         return id;
     }
@@ -228,23 +222,24 @@ public class Component extends ComponentResource {
     }
 
     public String getPackageTypeMemberNameWithFolder() {
-        if (!isWithinFolder() || Utils.isEmpty(metadataFilePath)) {
+        if (!isWithinFolder() || Utils.isEmpty(getMetadataFilePath())) {
             return name;
         }
 
         String defaultFolderToken = defaultFolder + "/";
-        return Constants.DOCUMENT.equals(componentType) ? metadataFilePath.substring(metadataFilePath
-                .indexOf(defaultFolderToken) + defaultFolderToken.length()) : metadataFilePath.substring(
-            metadataFilePath.indexOf(defaultFolderToken) + defaultFolderToken.length(),
-            metadataFilePath.indexOf("." + fileExtension));
+        return Constants.DOCUMENT.equals(componentType) ? getMetadataFilePath().substring(getMetadataFilePath()
+                .indexOf(defaultFolderToken) + defaultFolderToken.length()) : getMetadataFilePath().substring(
+            getMetadataFilePath().indexOf(defaultFolderToken) + defaultFolderToken.length(),
+            getMetadataFilePath().indexOf("." + fileExtension));
     }
 
     // filename is
+    @Override
     public String getFileName() {
-        if (Utils.isEmpty(fileName) && Utils.isNotEmpty(metadataFilePath) && metadataFilePath.lastIndexOf('/') > -1) {
-            fileName = metadataFilePath.substring(metadataFilePath.lastIndexOf('/') + 1);
+        if (Utils.isEmpty(fileName) && Utils.isNotEmpty(getMetadataFilePath()) && getMetadataFilePath().lastIndexOf('/') > -1) {
+            fileName = getMetadataFilePath().substring(getMetadataFilePath().lastIndexOf('/') + 1);
             if (logger.isDebugEnabled()) {
-                logger.debug("Derived file name '" + fileName + "' from metadata filepath '" + metadataFilePath + "'");
+                logger.debug("Derived file name '" + fileName + "' from metadata filepath '" + getMetadataFilePath() + "'");
             }
         }
         return fileName;
@@ -274,6 +269,7 @@ public class Component extends ComponentResource {
     }
 
     // full name is
+    @Override
     public String getFullName() {
         return fullName;
     }
@@ -318,6 +314,7 @@ public class Component extends ComponentResource {
         this.apiVersion = apiVersion;
     }
 
+    @Override
     public boolean isMetadataComposite() {
         return metadataComposite;
     }
@@ -326,6 +323,7 @@ public class Component extends ComponentResource {
         this.metadataComposite = metadata;
     }
 
+    @Override
     public boolean isWithinFolder() {
         return withinFolder;
     }
@@ -345,6 +343,7 @@ public class Component extends ComponentResource {
         this.folderNameIfFolderTypeMdComponent = componentFolderName;
     }
 
+    @Override
     public String getParentFolderNameIfComponentMustBeInFolder() {
         return parentFolderNameIfComponentMustBeInFolder;
     }
@@ -363,7 +362,7 @@ public class Component extends ComponentResource {
 
     public String getLastSupportedApiVersion() {
         if (Utils.isNotEmpty(supportedApiVersions)) {
-            TreeSet<String> tmpSupportedApiVersions = new TreeSet<String>();
+            TreeSet<String> tmpSupportedApiVersions = new TreeSet<>();
             tmpSupportedApiVersions.addAll(supportedApiVersions);
             return tmpSupportedApiVersions.last();
         }
@@ -372,13 +371,14 @@ public class Component extends ComponentResource {
 
     public String getFirstSupportedApiVersion() {
         if (Utils.isNotEmpty(supportedApiVersions)) {
-            TreeSet<String> tmpSupportedApiVersions = new TreeSet<String>();
+            TreeSet<String> tmpSupportedApiVersions = new TreeSet<>();
             tmpSupportedApiVersions.addAll(supportedApiVersions);
             return tmpSupportedApiVersions.first();
         }
         return "";
     }
 
+    @Override
     public String getCreatedById() {
         return createdById;
     }
@@ -387,6 +387,7 @@ public class Component extends ComponentResource {
         this.createdById = (String) createdById;
     }
 
+    @Override
     public String getCreatedByName() {
         return createdByName;
     }
@@ -395,6 +396,7 @@ public class Component extends ComponentResource {
         this.createdByName = (String) createdByName;
     }
 
+    @Override
     public java.util.Calendar getCreatedDate() {
         return createdDate;
     }
@@ -408,6 +410,7 @@ public class Component extends ComponentResource {
         this.createdDate.setTimeInMillis(createdDate);
     }
 
+    @Override
     public String getLastModifiedById() {
         return lastModifiedById;
     }
@@ -416,6 +419,7 @@ public class Component extends ComponentResource {
         this.lastModifiedById = (String) lastModifiedById;
     }
 
+    @Override
     public String getLastModifiedByName() {
         return lastModifiedByName;
     }
@@ -424,6 +428,7 @@ public class Component extends ComponentResource {
         this.lastModifiedByName = (String) lastModifiedByName;
     }
 
+    @Override
     public Calendar getLastModifiedDate() {
         return lastModifiedDate;
     }
@@ -437,10 +442,12 @@ public class Component extends ComponentResource {
         this.lastModifiedDate.setTimeInMillis(lastModifiedDate);
     }
 
+    @Override
     public String getNamespacePrefix() {
         return namespacePrefix;
     }
 
+    @Override
     public void setNamespacePrefix(Object namespacePrefix) {
         this.namespacePrefix = (String) namespacePrefix;
     }
@@ -469,27 +476,32 @@ public class Component extends ComponentResource {
         return maxNameLength;
     }
 
+    @Override
     public String getPackageName() {
         return packageName;
     }
 
+    @Override
     public void setPackageName(String packageName) {
         this.packageName = packageName;
     }
 
     // lookup method injection by container
-    public MetadataExt getDefaultMetadataExtInstance() throws InstantiationException, IllegalAccessException {
+    public MetadataExt getDefaultMetadataExtInstance() {
         return new MetadataExt();
     }
 
+    @Override
     public final boolean isInstalled() {
         return installed;
     }
 
+    @Override
     public final void setInstalled(boolean installed) {
         this.installed = installed;
     }
 
+    @Override
     public String getState() {
         return state;
     }
@@ -513,6 +525,7 @@ public class Component extends ComponentResource {
         }
     }
 
+    @Override
     public boolean isPackageManifest() {
         return Utils.isNotEmpty(componentType) && Constants.PACKAGE_MANIFEST.equals(componentType);
     }
@@ -521,6 +534,7 @@ public class Component extends ComponentResource {
         this.packageManifest = packageManifest;
     }
 
+    @Override
     public boolean isUnknown() {
         return Utils.isNotEmpty(componentType) && Constants.UNKNOWN_COMPONENT_TYPE.equals(componentType);
     }
@@ -533,6 +547,7 @@ public class Component extends ComponentResource {
         this.iconId = iconId;
     }
 
+    @Override
     public boolean isInternal() {
         return internal;
     }
@@ -541,6 +556,7 @@ public class Component extends ComponentResource {
         this.internal = internal;
     }
 
+    @Override
     public boolean isTextContent() {
         return textContent;
     }
@@ -549,14 +565,17 @@ public class Component extends ComponentResource {
         this.textContent = textContent;
     }
 
+    @Override
     public boolean isMetadataInstance() {
         return metadataInstance;
     }
 
+    @Override
     public void setMetadataInstance(boolean metadataInstance) {
         this.metadataInstance = metadataInstance;
     }
 
+    @Override
     public String getMetadataFileExtension() {
         return getFileExtension() + getMetadataFileExtensionPart();
     }
@@ -569,6 +588,7 @@ public class Component extends ComponentResource {
         this.metadataFileExtension = metadataExtension;
     }
 
+    @Override
     public String getCompositeMetadataFilePath() {
         return getCompositeMetadataPath(getMetadataFilePath());
     }
@@ -608,7 +628,7 @@ public class Component extends ComponentResource {
     }
 
     public Map<String, String> getTemplates() {
-        return new HashMap<String, String>(0);
+        return new HashMap<>(0);
     }
 
     public Set<String> getTemplateNames() {
@@ -618,17 +638,17 @@ public class Component extends ComponentResource {
     public Set<String> getTemplateNames(boolean sort) {
         Map<String, String> templates = getTemplates();
         if (Utils.isEmpty(templates)) {
-            logger.warn("Not templates found");
+            logger.debug("No templates found");
             return null;
         }
 
-        return sort ? new TreeSet<String>(templates.keySet()) : templates.keySet();
+        return sort ? new TreeSet<>(templates.keySet()) : templates.keySet();
     }
 
     public String getTemplate(String templateName) {
         Map<String, String> templates = getTemplates();
         if (Utils.isEmpty(templates)) {
-            logger.warn("Not templates found");
+            logger.debug("No templates found");
             return Constants.EMPTY_STRING;
         }
 
@@ -708,6 +728,7 @@ public class Component extends ComponentResource {
         this.codeBody = codeBody;
     }
 
+    @Override
     public boolean isRemoteDeleteable() {
         return remoteDeleteable;
     }
@@ -724,6 +745,7 @@ public class Component extends ComponentResource {
         this.remoteAdd = remoteAdd;
     }
 
+    @Override
     public List<String> getAssociatedComponentTypes() {
         return associatedComponentTypes;
     }
@@ -742,7 +764,7 @@ public class Component extends ComponentResource {
 
     // lookup method injection by container
     public List<String> getSubComponentTypes() {
-        return new ArrayList<String>();
+        return new ArrayList<>();
     }
 
     public boolean hasSubComponentTypes() {
@@ -757,6 +779,7 @@ public class Component extends ComponentResource {
         this.hasAssociatedComponentTypes = hasAssociatedComponentTypes;
     }
 
+    @Override
     public boolean isWildCardSupported() {
         return wildCardSupported;
     }
@@ -773,28 +796,26 @@ public class Component extends ComponentResource {
         this.builtInSubFolders = builtInSubFolders;
     }
 
-    public MetadataExt getMetadataExtFromBody() throws InstantiationException, IllegalAccessException, JAXBException {
+    public MetadataExt getMetadataExtFromBody() throws JAXBException {
         MetadataExt metadataExt = getDefaultMetadataExtInstance();
-        return metadataExt.getComponentFromXML(body);
+        return metadataExt.getComponentFromXML(getBody());
     }
 
     public MetadataExt getMetadataExtFromBody(boolean validate, ValidationEventHandler validationEventHandler)
-            throws InstantiationException, IllegalAccessException, JAXBException {
+            throws JAXBException {
         MetadataExt metadataExt = getDefaultMetadataExtInstance();
-        return metadataExt.getComponentFromXML(body, validate, validationEventHandler);
+        return metadataExt.getComponentFromXML(getBody(), validate, validationEventHandler);
     }
 
-    public Object getSubMetadataExtFromBody(Class<? extends MetadataExt> componentClass) throws InstantiationException,
-            IllegalAccessException, JAXBException, ClassNotFoundException, IllegalArgumentException,
+    public Object getSubMetadataExtFromBody(Class<? extends MetadataExt> componentClass) throws IllegalAccessException, JAXBException, IllegalArgumentException,
             InvocationTargetException {
         String className = componentClass.getSimpleName();
         return getSubMetadataExtFromBody(className);
     }
 
-    public Object getSubMetadataExtFromBody(String componentType) throws InstantiationException,
-            IllegalAccessException, JAXBException, ClassNotFoundException, IllegalArgumentException,
+    public Object getSubMetadataExtFromBody(String componentType) throws IllegalAccessException, JAXBException, IllegalArgumentException,
             InvocationTargetException {
-        if (Utils.isEmpty(body) || Utils.isEmpty(componentType)) {
+        if (Utils.isEmpty(getBody()) || Utils.isEmpty(componentType)) {
             logger.warn("Component body and/or to-be-retrieved component type are null or empty");
             return null;
         }
@@ -818,6 +839,7 @@ public class Component extends ComponentResource {
         return getterMethod.invoke(metadataExt, args);
     }
 
+    @Override
     public String getFullDisplayName() {
         String tempComponentType = Utils.isNotEmpty(getComponentType()) ? getComponentType() : "";
         String subComponentType =
@@ -831,7 +853,6 @@ public class Component extends ComponentResource {
 
     public final void intiNewBody(String body) {
         setBody(body);
-        setFile(body.getBytes());
     }
 
     @Override
@@ -882,7 +903,6 @@ public class Component extends ComponentResource {
     @Override
     protected void saveAdditionalFileProperties(IFile file) {
         // not implemented
-
     }
 
     public void setFileProperties(FileProperties fileProperties) {
@@ -918,7 +938,7 @@ public class Component extends ComponentResource {
         }
     }
 
-    private Method getSetterMethod(Component component, String methodName) throws ClassNotFoundException {
+    private static Method getSetterMethod(Component component, String methodName) throws ClassNotFoundException {
         Method setterMethod = null;
         Class<?> componentClass = Class.forName(component.getClass().getName());
         Method[] methods = componentClass.getMethods();
@@ -949,16 +969,19 @@ public class Component extends ComponentResource {
     }
 
     private final Predicate<Component> somethingChangedPredicate = new Predicate<Component>() {
+        @Override
         public boolean apply(Component remoteComponent) {
             return getBodyChecksum() != remoteComponent.getBodyChecksum();
         }
     };
     private final Predicate<Component> remoteChangedPredicate = new Predicate<Component>() {
+        @Override
         public boolean apply(Component remoteComponent) {
             return getOriginalBodyChecksum() != remoteComponent.getBodyChecksum();
         }
     };
     private final Predicate<Component> localChangedPredicate = new Predicate<Component>() {
+        @Override
         public boolean apply(Component remoteComponent) {
             return getBodyChecksum() != getOriginalBodyChecksum();
         }
@@ -975,7 +998,7 @@ public class Component extends ComponentResource {
     /**
      * @return
      */
-    private boolean hasChanged(Component remoteComponent, List<Predicate<Component>> predicates) {
+    private static boolean hasChanged(Component remoteComponent, List<Predicate<Component>> predicates) {
         for (Predicate<Component> predicate : predicates) {
             if (!predicate.apply(remoteComponent)) {
                 return false;
@@ -1098,7 +1121,7 @@ public class Component extends ComponentResource {
                 .append("associatedComponentTypes=").append(this.associatedComponentTypes).append(TAB)
                 .append("builtInSubFolders=").append(this.builtInSubFolders).append(TAB);
         if (isTextContent() || (Utils.isNotEmpty(fileName) && fileName.endsWith("txt"))) {
-            retValue.append("body =\n").append(this.body);
+            retValue.append("body =\n").append(getBody());
         }
         retValue.append(")");
         return retValue.toString();

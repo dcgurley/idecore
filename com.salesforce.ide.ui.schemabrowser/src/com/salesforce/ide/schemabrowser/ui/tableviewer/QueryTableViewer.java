@@ -12,35 +12,33 @@ package com.salesforce.ide.schemabrowser.ui.tableviewer;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Hashtable;
 import java.util.Iterator;
+import java.util.Vector;
 
 import org.eclipse.core.resources.IProject;
-import org.eclipse.jface.viewers.CellEditor;
-import org.eclipse.jface.viewers.CheckboxCellEditor;
-import org.eclipse.jface.viewers.ComboBoxCellEditor;
 import org.eclipse.jface.viewers.ISelection;
 import org.eclipse.jface.viewers.IStructuredContentProvider;
 import org.eclipse.jface.viewers.TableViewer;
-import org.eclipse.jface.viewers.TextCellEditor;
 import org.eclipse.jface.viewers.Viewer;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.custom.SashForm;
+import org.eclipse.swt.events.MouseAdapter;
 import org.eclipse.swt.events.MouseEvent;
-import org.eclipse.swt.events.MouseListener;
-import org.eclipse.swt.events.VerifyEvent;
-import org.eclipse.swt.events.VerifyListener;
+import org.eclipse.swt.graphics.Point;
+import org.eclipse.swt.graphics.Rectangle;
 import org.eclipse.swt.widgets.Composite;
 import org.eclipse.swt.widgets.Control;
+import org.eclipse.swt.widgets.Display;
 import org.eclipse.swt.widgets.Table;
 import org.eclipse.swt.widgets.TableColumn;
-import org.eclipse.swt.widgets.Text;
+import org.eclipse.swt.widgets.TableItem;
 
 import com.salesforce.ide.core.factories.ConnectionFactory;
 import com.salesforce.ide.core.internal.context.ContainerDelegate;
 import com.salesforce.ide.core.internal.utils.SoqlEnum;
 import com.salesforce.ide.core.internal.utils.Utils;
 import com.salesforce.ide.core.internal.utils.XmlConstants;
-import com.salesforce.ide.core.project.ForceProjectException;
 import com.salesforce.ide.core.remote.Connection;
 import com.salesforce.ide.core.remote.ForceConnectionException;
 import com.salesforce.ide.core.remote.ForceRemoteException;
@@ -69,7 +67,7 @@ public class QueryTableViewer {
     }
 
     //   M E T H O D S
-    public ConnectionFactory getConnectionFactory() throws ForceProjectException {
+    public ConnectionFactory getConnectionFactory() {
         if (connectionFactory == null) {
             connectionFactory = ContainerDelegate.getInstance().getFactoryLocator().getConnectionFactory();
         }
@@ -92,8 +90,7 @@ public class QueryTableViewer {
         this.parentComposite = parentComposite;
     }
 
-    public void initialize(Composite parent) throws ForceConnectionException, ForceProjectException,
-            ForceRemoteException {
+    public void initialize(Composite parent) throws ForceConnectionException, ForceRemoteException {
         addChildControls(parent);
     }
 
@@ -111,12 +108,10 @@ public class QueryTableViewer {
      * @return the shell that was created
      * @throws ConnectionException
      * @throws ConnectionException
-     * @throws ForceProjectException
      * @throws ForceConnectionException
      * @throws ForceRemoteException 
      */
-    private void addChildControls(final Composite composite) throws ForceConnectionException, ForceProjectException,
-            ForceRemoteException {
+    private void addChildControls(final Composite composite) throws ForceConnectionException, ForceRemoteException {
         parentComposite = composite;
         Connection connection = getConnectionFactory().getConnection(project);
         QueryResult qr = connection.query(SoqlEnum.getSchemaInitalizationQuery());
@@ -164,8 +159,9 @@ public class QueryTableViewer {
 
         table.setLinesVisible(true);
         table.setHeaderVisible(true);
+        table.setToolTipText("Double click on parent or child cells (when present) to see the related records");
 
-        ArrayList<String> _columnNames = new ArrayList<String>();
+        ArrayList<String> _columnNames = new ArrayList<>();
 
         if (qr != null && qr.getSize() > 0) {
             if (Utils.isNotEmpty(qr.getRecords())) {
@@ -213,63 +209,88 @@ public class QueryTableViewer {
         tableViewer = new TableViewer(table);
 
         tableViewer.setUseHashlookup(true);
-        table.addMouseListener(new MouseListener() {
-
+        tableViewer.setColumnProperties(columnNames);
+        
+        final Table t = table;
+        table.addMouseListener(new MouseAdapter() {
+            @Override
             public void mouseDoubleClick(MouseEvent e) {
-            }
-
-            public void mouseDown(MouseEvent e) {
-            }
-
-            public void mouseUp(MouseEvent e) {
-
+                Point pt = new Point(e.x, e.y);
+                TableItem item = t.getItem(pt);
+                for (int column = 0; column < t.getColumnCount(); column++) {
+                    Rectangle rect = item.getBounds(column);
+                    if (rect.contains(pt)) {
+                        DataRow dr = (DataRow) item.getData();
+                        XmlObject val = dr.getRecord().get(column);
+                        if (val != null && val.getXmlType() != null) {
+                            showDialog(val);
+                        }
+                    }
+                }
             }
         });
+    }
+    
+    // This code was in the (deleted) CellModifier class
+    private static void showDialog(XmlObject val) {
+        
+        Hashtable<String, String> columnNames = new Hashtable<>();
+        Vector<Hashtable<String, Object>> rows = new Vector<>();
 
-        tableViewer.setColumnProperties(columnNames);
-        CellEditor[] editorsx = new CellEditor[columnNames.length];
-        for (int i = 0; i < columnNames.length; i++) {
-            editorsx[i] = new TextCellEditor(table);
-        }
-        tableViewer.setCellEditors(editorsx);
-        tableViewer.setCellModifier(new CellModifier(this));
-
-        if (1 == 2) {
-            // Create the cell editors
-            CellEditor[] editors = new CellEditor[columnNames.length];
-
-            // Column 1 : Completed (Checkbox)
-            editors[0] = new CheckboxCellEditor(table);
-
-            // Column 2 : Description (Free text)
-            TextCellEditor textEditor = new TextCellEditor(table);
-            ((Text) textEditor.getControl()).setTextLimit(60);
-            editors[1] = textEditor;
-
-            // Column 3 : Owner (Combo Box)
-            editors[2] = new ComboBoxCellEditor(table, taskList.getOwners(), SWT.READ_ONLY);
-
-            // Column 4 : Percent complete (Text with digits only)
-            textEditor = new TextCellEditor(table);
-            ((Text) textEditor.getControl()).addVerifyListener(
-
-            new VerifyListener() {
-                public void verifyText(VerifyEvent e) {
-                    // Here, we could use a RegExp such as the following
-                    // if using JRE1.4 such as e.doit =
-                    // e.text.matches("[\\-0-9]*");
-                    e.doit = "0123456789".indexOf(e.text) >= 0;
+        String dialogTitle = null;
+        if ("sObject".equals(val.getXmlType().getLocalPart())) {
+            dialogTitle = "Parent Record " + val.getName().getLocalPart();
+            Iterator<XmlObject> iter = val.getChildren();
+            Hashtable<String, Object> row = new Hashtable<>();
+            ArrayList<String> rowsNames = new ArrayList<>();
+            while (iter.hasNext()) {
+                XmlObject field = iter.next();
+                if (!XmlConstants.ELEM_TYPE.equals(field.getName().getLocalPart())
+                        && !rowsNames.contains(field.getName().getLocalPart())) {
+                    if (field.getValue() != null) {
+                        columnNames.put(field.getName().getLocalPart(), field.getName().getLocalPart());
+                    }
+                    Object fieldVal = field.getValue();
+                    if (fieldVal == null) {
+                        fieldVal = "";
+                    }
+                    row.put(field.getName().getLocalPart(), fieldVal);
+                    rowsNames.add(field.getName().getLocalPart());
                 }
-            });
-            editors[3] = textEditor;
+            }
+            rows.add(row);
+        } else {
+            Iterator<XmlObject> iter = val.getChildren();
+            while (iter.hasNext()) {
+                XmlObject oneElement = iter.next();
+                dialogTitle = "Child records for " + val.getName().getLocalPart();
 
-            // Assign the cell editors to the viewer
-            tableViewer.setCellEditors(editors);
-            // Set the cell modifier for the viewer
-            tableViewer.setCellModifier(new CellModifier(this));
-            // Set the default sorter for the viewer
-            tableViewer.setSorter(new DataRowSorter(DataRowSorter.DESCRIPTION));
+                if ("records".equals(oneElement.getName().getLocalPart())) {
+                    Iterator<XmlObject> children = oneElement.getChildren();
+                    Hashtable<String, Object> row = new Hashtable<>();
+                    ArrayList<String> rowsNames = new ArrayList<>();
+                    while (children.hasNext()) {
+                        XmlObject field = children.next();
+                        if (!XmlConstants.ELEM_TYPE.equals(field.getName().getLocalPart())
+                                && !rowsNames.contains(field.getName().getLocalPart())) {
+                            if (field.getValue() != null) {
+                                columnNames.put(field.getName().getLocalPart(), field.getName().getLocalPart());
+                            }
+                            Object fieldVal = field.getValue();
+                            if (fieldVal == null) {
+                                fieldVal = "";
+                            }
+                            row.put(field.getName().getLocalPart(), fieldVal);
+                        }
+                    }
+                    rows.add(row);
+                }
+            }
         }
+
+        TableViewerRunnable mr = new TableViewerRunnable(null);// Display.getDefault().getActiveShell());
+        mr.init(rows, columnNames, dialogTitle);
+        Display.getDefault().syncExec(mr);
     }
 
     /**
@@ -277,6 +298,7 @@ public class QueryTableViewer {
      * ITaskListViewer interface since it must register changeListeners with the ExampleTaskList
      */
     class SchemaContentProvider implements IStructuredContentProvider, IDataRowListViewer {
+        @Override
         public void inputChanged(Viewer v, Object oldInput, Object newInput) {
             if (newInput != null) {
                 ((DataRowList) newInput).addChangeListener(this);
@@ -286,11 +308,13 @@ public class QueryTableViewer {
             }
         }
 
+        @Override
         public void dispose() {
             taskList.removeChangeListener(this);
         }
 
         // Return the tasks as an array of Objects
+        @Override
         public Object[] getElements(Object parent) {
             return taskList.getTasks().toArray();
         }
@@ -300,6 +324,7 @@ public class QueryTableViewer {
          *
          * @see ITaskListViewer#addTask(ExampleTask)
          */
+        @Override
         public void addTask(DataRow task) {
             tableViewer.add(task);
         }
@@ -309,6 +334,7 @@ public class QueryTableViewer {
          *
          * @see ITaskListViewer#removeTask(ExampleTask)
          */
+        @Override
         public void removeTask(DataRow task) {
             tableViewer.remove(task);
         }
@@ -318,6 +344,7 @@ public class QueryTableViewer {
          *
          * @see ITaskListViewer#updateTask(ExampleTask)
          */
+        @Override
         public void updateTask(DataRow task) {
             tableViewer.update(task, null);
         }

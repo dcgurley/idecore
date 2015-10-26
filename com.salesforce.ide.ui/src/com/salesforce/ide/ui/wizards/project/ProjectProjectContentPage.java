@@ -21,7 +21,6 @@ import org.eclipse.swt.custom.StyleRange;
 import org.eclipse.swt.widgets.Composite;
 import org.w3c.dom.Document;
 
-import com.salesforce.ide.core.internal.utils.Constants;
 import com.salesforce.ide.core.internal.utils.Messages;
 import com.salesforce.ide.core.internal.utils.PackageManifestDocumentUtils;
 import com.salesforce.ide.core.internal.utils.Utils;
@@ -62,6 +61,7 @@ public class ProjectProjectContentPage extends BaseProjectCreatePage {
     /**
      * Assemble connection page wizard.
      */
+    @Override
     public void createControl(Composite parent) {
         projectProjectContentComposite = new ProjectProjectContentComposite(parent, SWT.NULL, this, getProjectModel());
         setControl(projectProjectContentComposite);

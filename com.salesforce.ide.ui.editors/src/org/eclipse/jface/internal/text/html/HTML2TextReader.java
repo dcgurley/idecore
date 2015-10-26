@@ -30,16 +30,16 @@ import org.eclipse.jface.text.TextPresentation;
  * <p>
  * Moved into this package from <code>org.eclipse.jface.internal.text.revisions</code>.</p>
  */
-@SuppressWarnings({"nls", "unchecked"})
+@SuppressWarnings({"nls"})
 public class HTML2TextReader extends SubstitutionTextReader {
 
 	private static final String EMPTY_STRING= ""; //$NON-NLS-1$
-	private static final Map fgEntityLookup;
-	private static final Set fgTags;
+	private static final Map<String, String> fgEntityLookup;
+	private static final Set<String> fgTags;
 
 	static {
 
-		fgTags= new HashSet();
+		fgTags= new HashSet<>();
 		fgTags.add("b"); //$NON-NLS-1$
 		fgTags.add("br"); //$NON-NLS-1$
 		fgTags.add("br/"); //$NON-NLS-1$
@@ -58,7 +58,7 @@ public class HTML2TextReader extends SubstitutionTextReader {
 		fgTags.add("pre"); //$NON-NLS-1$
 		fgTags.add("head"); //$NON-NLS-1$
 
-		fgEntityLookup= new HashMap(7);
+		fgEntityLookup= new HashMap<>(7);
 		fgEntityLookup.put("lt", "<"); //$NON-NLS-1$ //$NON-NLS-2$
 		fgEntityLookup.put("gt", ">"); //$NON-NLS-1$ //$NON-NLS-2$
 		fgEntityLookup.put("nbsp", " "); //$NON-NLS-1$ //$NON-NLS-2$
@@ -89,7 +89,8 @@ public class HTML2TextReader extends SubstitutionTextReader {
 		fTextPresentation= presentation;
 	}
 
-	public int read() throws IOException {
+	@Override
+    public int read() throws IOException {
 		int c= super.read();
 		if (c != -1)
 			++ fCounter;
@@ -125,7 +126,8 @@ public class HTML2TextReader extends SubstitutionTextReader {
 	/*
 	 * @see org.eclipse.jdt.internal.ui.text.SubstitutionTextReader#computeSubstitution(int)
 	 */
-	protected String computeSubstitution(int c) throws IOException {
+	@Override
+    protected String computeSubstitution(int c) throws IOException {
 
 		if (c == '<')
 			return  processHTMLTag();
@@ -296,7 +298,7 @@ public class HTML2TextReader extends SubstitutionTextReader {
 			} catch (NumberFormatException e) {
 			}
 		} else {
-			String str= (String) fgEntityLookup.get(symbol);
+			String str= fgEntityLookup.get(symbol);
 			if (str != null) {
 				return str;
 			}

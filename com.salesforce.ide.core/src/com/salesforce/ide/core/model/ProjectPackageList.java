@@ -46,12 +46,14 @@ import com.salesforce.ide.core.internal.utils.Constants;
 import com.salesforce.ide.core.internal.utils.ForceExceptionUtils;
 import com.salesforce.ide.core.internal.utils.MessageDialogRunnable;
 import com.salesforce.ide.core.internal.utils.Messages;
+import com.salesforce.ide.core.internal.utils.QuietCloseable;
 import com.salesforce.ide.core.internal.utils.Utils;
 import com.salesforce.ide.core.internal.utils.ZipUtils;
 import com.salesforce.ide.core.internal.utils.ZipUtils.ZipStats;
 import com.salesforce.ide.core.project.ForceProjectException;
 import com.salesforce.ide.core.remote.metadata.FileMetadataExt;
 import com.salesforce.ide.core.services.ProjectService;
+import com.salesforce.ide.core.services.hooks.SyncServiceListenerBroadcaster;
 import com.sforce.soap.metadata.FileProperties;
 
 /**
@@ -188,7 +190,7 @@ public class ProjectPackageList extends ArrayList<ProjectPackage> {
     }
 
     public String[] getNamedPackageNames() {
-        List<String> packageNames = new ArrayList<String>();
+        List<String> packageNames = new ArrayList<>();
         for (ProjectPackage projectPackage : this) {
             String packageName = projectPackage.getName();
             if (Constants.DEFAULT_PACKAGED_NAME.equals(packageName)) {
@@ -200,7 +202,7 @@ public class ProjectPackageList extends ArrayList<ProjectPackage> {
     }
 
     public String[] getPackageNames(boolean includeDefault) {
-        List<String> packageNames = new ArrayList<String>();
+        List<String> packageNames = new ArrayList<>();
         for (ProjectPackage projectPackage : this) {
             String packageName = projectPackage.getName();
             if (Constants.DEFAULT_PACKAGED_NAME.equals(packageName) && !includeDefault) {
@@ -313,27 +315,28 @@ public class ProjectPackageList extends ArrayList<ProjectPackage> {
     }
 
     public byte[] getZip(boolean manifestsOnly) throws IOException {
-        byte[] zipAsBytes = null;
-        // streams to contain components
-        ByteArrayOutputStream bos = new ByteArrayOutputStream();
-        ZipOutputStream zos = new ZipOutputStream(bos);
+        try (final QuietCloseable<ByteArrayOutputStream> c0 = QuietCloseable.make(new ByteArrayOutputStream())) {
+            final ByteArrayOutputStream bos = c0.get();
 
-        // new zip stats to gather info about zip
-        ZipStats stats = new ZipStats();
-        for (ProjectPackage projectPackage : this) {
-            projectPackage.addComponentsToZip(stats, zos, manifestsOnly);
+            try (final QuietCloseable<ZipOutputStream> c = QuietCloseable.make(new ZipOutputStream(bos))) {
+                final ZipOutputStream zos = c.get();
+    
+                // new zip stats to gather info about zip
+                ZipStats stats = new ZipStats();
+                for (ProjectPackage projectPackage : this) {
+                    projectPackage.addComponentsToZip(stats, zos, manifestsOnly);
+                }
+        
+                final byte[] zipAsBytes = bos.toByteArray();
+        
+                if (logger.isDebugEnabled()) {
+                    logger.debug("Zip stats for entire project package list:\n" + stats.toString());
+                    ZipUtils.writeDeployZipToTempDir(zipAsBytes);
+                }
+        
+                return zipAsBytes;
+            }
         }
-
-        // close zip stream and get bytes
-        zos.close();
-        zipAsBytes = bos.toByteArray();
-
-        if (logger.isDebugEnabled()) {
-            logger.debug("Zip stats for entire project package list:\n" + stats.toString());
-            ZipUtils.writeDeployZipToTempDir(zipAsBytes);
-        }
-
-        return zipAsBytes;
     }
 
     public void parseZip(byte[] zipFile, IProgressMonitor monitor) throws IOException {
@@ -349,14 +352,15 @@ public class ProjectPackageList extends ArrayList<ProjectPackage> {
 
         List<String> folderNames = projectService.getComponentFactory().getFolderNamesForFolderComponents();
 
-        ByteArrayInputStream bis = new ByteArrayInputStream(zipFile);
-        ZipInputStream zis = new ZipInputStream(bis);
-        try {
+        try (final QuietCloseable<ZipInputStream> c = QuietCloseable.make(new ZipInputStream(new ByteArrayInputStream(zipFile)))) {
+            final ZipInputStream zis = c.get();
+
             for (;;) {
                 ZipEntry ze = zis.getNextEntry();
                 if (ze == null) {
                     break;
                 }
+
                 byte[] fileContent = StreamUtils.getBytes(zis);
                 String name = ze.getName();
                 if (ze.isDirectory()) {
@@ -384,8 +388,6 @@ public class ProjectPackageList extends ArrayList<ProjectPackage> {
 
                 projectPackage.addFilePathZipMapping(name, fileContent);
             }
-        } finally {
-            zis.close();
         }
 
         monitorWork(monitor);
@@ -394,7 +396,7 @@ public class ProjectPackageList extends ArrayList<ProjectPackage> {
     // FIXME: this does not handle instances where the package name is the same name as the folder-based
     // component's default folder (<package>/<default-folder>/<customer-folder>/<component-full-name>).
     // for example "documents/documents/documents/doc.txt
-    private boolean startsWithPackageName(List<String> folderNames, String name) {
+    private static boolean startsWithPackageName(List<String> folderNames, String name) {
         if (Utils.isNotEmpty(name) && name.contains("/") && name.split("/").length > 2) {
             if (Utils.isNotEmpty(folderNames)) {
                 for (String folderName : folderNames) {
@@ -543,7 +545,7 @@ public class ProjectPackageList extends ArrayList<ProjectPackage> {
     }
 
     // if component is not package.xml, check if the type exists in designate list.  if folder, check sub type
-    private boolean isDesiredComponentType(List<String> designatedSaveComponentTypes, Component component) {
+    private static boolean isDesiredComponentType(List<String> designatedSaveComponentTypes, Component component) {
         if (component.isPackageManifest() || Utils.isEmpty(designatedSaveComponentTypes)) {
             return true;
         }
@@ -562,7 +564,7 @@ public class ProjectPackageList extends ArrayList<ProjectPackage> {
     }
 
     public List<String> getFilePaths(boolean stripSourcePrefix) {
-        List<String> filePaths = new ArrayList<String>();
+        List<String> filePaths = new ArrayList<>();
         for (ProjectPackage projectPackage : this) {
             List<String> tmpFilePaths = projectPackage.getFilePaths(stripSourcePrefix);
             if (Utils.isNotEmpty(tmpFilePaths)) {
@@ -573,7 +575,7 @@ public class ProjectPackageList extends ArrayList<ProjectPackage> {
     }
 
     public List<String> getComponentFilePaths(boolean stripSourcePrefix) {
-        List<String> filePaths = new ArrayList<String>();
+        List<String> filePaths = new ArrayList<>();
         for (ProjectPackage projectPackage : this) {
             List<String> tmpFilePaths = projectPackage.getComponentFilePaths(stripSourcePrefix);
             if (Utils.isNotEmpty(tmpFilePaths)) {
@@ -672,15 +674,16 @@ public class ProjectPackageList extends ArrayList<ProjectPackage> {
                     logger.warn("Component composite file not found at filepath '" + compositeComponentFilePath
                             + "' for component " + component.getFullDisplayName());
 
-                    compositeComponent = getComponentFactory().getCompositeComponentFromComponent(component, false);
+                    compositeComponent = getComponentFactory().getCompositeComponentFromComponent(component);
                 } else {
                     // create composite instance for object type
                     compositeComponent = getComponentFactory().getComponentFromFile(compositeComponentFile);
                 }
 
                 if (compositeComponent == null) {
+                    final String path = null == compositeComponentFile ? "" : compositeComponentFile.getProjectRelativePath().toPortableString();
                     logger.warn("Component metadata not created for '"
-                            + compositeComponentFile.getProjectRelativePath().toPortableString() + "' for component "
+                            + path + "' for component "
                             + component.getFullDisplayName());
                     return;
                 }
@@ -832,7 +835,7 @@ public class ProjectPackageList extends ArrayList<ProjectPackage> {
         return null;
     }
 
-    private boolean isEqualStripSourcePrefix(String filepathA, String filepathB) {
+    private static boolean isEqualStripSourcePrefix(String filepathA, String filepathB) {
         if (Utils.isEmpty(filepathA) || Utils.isEmpty(filepathB)) {
             return false;
         }
@@ -876,7 +879,7 @@ public class ProjectPackageList extends ArrayList<ProjectPackage> {
      * @return
      */
     public List<Component> getComponentsById(String id) {
-        List<Component> components = new ArrayList<Component>();
+        List<Component> components = new ArrayList<>();
         if (!isEmpty() && Utils.isNotEmpty(id)) {
             for (ProjectPackage projectPackage : this) {
                 ComponentList componentList = projectPackage.getComponentList();
@@ -1048,7 +1051,7 @@ public class ProjectPackageList extends ArrayList<ProjectPackage> {
     }
 
     public List<IResource> getAllComponentResources(boolean includeManifest) {
-        List<IResource> resources = new ArrayList<IResource>();
+        List<IResource> resources = new ArrayList<>();
 
         if (isEmpty()) {
             return resources;
@@ -1070,7 +1073,7 @@ public class ProjectPackageList extends ArrayList<ProjectPackage> {
     }
 
     public List<IResource> getComponentResourcesForComponentTypes(String[] componentTypes) {
-        List<IResource> resources = new ArrayList<IResource>();
+        List<IResource> resources = new ArrayList<>();
 
         if (isEmpty() || Utils.isEmpty(componentTypes)) {
             return resources;
@@ -1126,7 +1129,7 @@ public class ProjectPackageList extends ArrayList<ProjectPackage> {
         saveResources(project, componentTypes, monitor);
     }
 
-    public void saveResources(IProject project, String[] componentTypes, IProgressMonitor monitor)
+    private void saveResources(IProject project, String[] componentTypes, IProgressMonitor monitor)
             throws InterruptedException {
         if (project == null) {
             throw new IllegalArgumentException("Project cannot be null");
@@ -1205,10 +1208,13 @@ public class ProjectPackageList extends ArrayList<ProjectPackage> {
             if (logger.isDebugEnabled()) {
                 logger.debug("Saved [" + savedCount + "] components to project " + project.getName());
             }
+
+            SyncServiceListenerBroadcaster.broadcast(componentList);
         }
+        
     }
 
-    private boolean handleReadOnlyException(CoreException coreException, Component component) {
+    private static boolean handleReadOnlyException(CoreException coreException, Component component) {
         boolean skipAllReadOnlyExceptions = false;
         if (ForceExceptionUtils.isReadOnlyException(coreException) && !skipAllReadOnlyExceptions) {
             String message = ForceExceptionUtils.getStrippedExceptionMessage(coreException.getMessage());
@@ -1230,7 +1236,7 @@ public class ProjectPackageList extends ArrayList<ProjectPackage> {
         return skipAllReadOnlyExceptions;
     }
 
-    private void handleSaveException(Exception exception, Component component) throws InterruptedException {
+    private static void handleSaveException(Exception exception, Component component) throws InterruptedException {
         String message = ForceExceptionUtils.getStrippedExceptionMessage(exception.getMessage());
         logger.warn("Unable to save " + component.getFullDisplayName() + " to file - " + message);
         StringBuffer strBuff = new StringBuffer(Messages.getString("Components.SaveResourceError.message"));
@@ -1247,7 +1253,7 @@ public class ProjectPackageList extends ArrayList<ProjectPackage> {
         }
     }
 
-    private boolean isDesignatedSaveComponentType(List<String> designatedSaveComponentTypes, Component component) {
+    private static boolean isDesignatedSaveComponentType(List<String> designatedSaveComponentTypes, Component component) {
         return designatedSaveComponentTypes.contains(component.getComponentType())
                 || (Utils.isNotEmpty(component.getSecondaryComponentType()) && designatedSaveComponentTypes
                         .contains(component.getSecondaryComponentType()));
@@ -1258,7 +1264,7 @@ public class ProjectPackageList extends ArrayList<ProjectPackage> {
             return null;
         }
 
-        Set<String> componentTypes = new HashSet<String>();
+        Set<String> componentTypes = new HashSet<>();
         for (ProjectPackage projectPackage : this) {
             ComponentList componentList = projectPackage.getComponentList();
             if (Utils.isEmpty(componentList)) {

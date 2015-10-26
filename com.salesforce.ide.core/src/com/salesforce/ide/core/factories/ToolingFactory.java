@@ -27,7 +27,7 @@ import com.salesforce.ide.core.remote.ToolingStubExt;
  * 
  */
 public class ToolingFactory extends BaseFactory {
-    private static ConcurrentMap<ForceProject, ToolingStubExt> toolingStubs = new ConcurrentHashMap<ForceProject, ToolingStubExt>();
+    private static ConcurrentMap<ForceProject, ToolingStubExt> toolingStubs = new ConcurrentHashMap<>();
 
     public ToolingFactory() {
         super();
@@ -75,7 +75,7 @@ public class ToolingFactory extends BaseFactory {
         return stub;
     }
 
-    private void cacheToolingStubExt(ForceProject forceProject, ToolingStubExt stub) {
+    private static void cacheToolingStubExt(ForceProject forceProject, ToolingStubExt stub) {
         toolingStubs.put(forceProject, stub);
     }
 

@@ -23,7 +23,6 @@ import org.eclipse.core.resources.IProject;
 import org.eclipse.core.resources.IResource;
 import org.eclipse.core.runtime.CoreException;
 import org.eclipse.core.runtime.IProgressMonitor;
-import org.eclipse.jface.action.IAction;
 import org.eclipse.jface.dialogs.IDialogConstants;
 import org.eclipse.jface.dialogs.MessageDialog;
 import org.eclipse.jface.window.Window;
@@ -43,7 +42,6 @@ import com.salesforce.ide.core.internal.utils.Messages;
 import com.salesforce.ide.core.internal.utils.Utils;
 import com.salesforce.ide.core.model.Component;
 import com.salesforce.ide.core.model.ProjectPackageList;
-import com.salesforce.ide.core.project.ForceProjectException;
 import com.salesforce.ide.core.remote.Connection;
 import com.salesforce.ide.core.remote.ForceConnectionException;
 import com.salesforce.ide.core.remote.ForceRemoteException;
@@ -58,7 +56,7 @@ public class RefreshResourceActionController extends ActionController {
     private boolean refreshResult = true;
 
     //   C O N S T R U C T O R S
-    public RefreshResourceActionController() throws ForceProjectException {
+    public RefreshResourceActionController() {
         super();
     }
 
@@ -69,7 +67,7 @@ public class RefreshResourceActionController extends ActionController {
     }
 
     @Override
-    public boolean preRun(IAction action) {
+    public boolean preRun() {
         if (Utils.isEmpty(selectedResources)) {
             logger.info("Operation cancelled.  Resources not provided.");
             return false;
@@ -201,7 +199,7 @@ public class RefreshResourceActionController extends ActionController {
     // refresh folder
     private boolean refreshSourceFolder(IFolder folder, IProgressMonitor monitor) throws FactoryException,
             ForceConnectionException, CoreException, InterruptedException, IOException, ForceRemoteException,
-            InvocationTargetException, ServiceException, Exception {
+            ServiceException, Exception {
         if (folder == null || !folder.exists()) {
             return false;
         }
@@ -258,7 +256,7 @@ public class RefreshResourceActionController extends ActionController {
             IOException, InvocationTargetException, Exception {
         monitorCheck(monitor);
         List<IResource> folders = getProjectService().getResourcesByType(selectedResources, IResource.FOLDER);
-        List<String> pkgNames = new ArrayList<String>();
+        List<String> pkgNames = new ArrayList<>();
         if (Utils.isNotEmpty(folders)) {
             for (IResource folder : folders) {
                 if (getProjectService().isReferencedPackageFolder(folder)) {
@@ -302,8 +300,7 @@ public class RefreshResourceActionController extends ActionController {
     }
 
     protected boolean retrieveInstalledPackages(IProject project, IProgressMonitor monitor)
-            throws InterruptedException, ForceConnectionException, ForceRemoteException, FactoryException,
-            CoreException, InvocationTargetException, IOException, ServiceException, Exception {
+            throws InterruptedException, ForceConnectionException, ForceRemoteException, CoreException, IOException, ServiceException, Exception {
         if (project == null) {
             throw new IllegalArgumentException("Project cannot be null");
         }
@@ -357,10 +354,10 @@ public class RefreshResourceActionController extends ActionController {
 
     protected void handleSourceComponentFolderRefresh(IProgressMonitor monitor) throws InterruptedException,
             ForceConnectionException, ForceRemoteException, FactoryException, CoreException, IOException,
-            InvocationTargetException, ServiceException, Exception {
+            ServiceException, Exception {
         monitorCheck(monitor);
         List<IResource> folders = getProjectService().getResourcesByType(selectedResources, IResource.FOLDER);
-        List<String> componentTypes = new ArrayList<String>();
+        List<String> componentTypes = new ArrayList<>();
         if (Utils.isNotEmpty(folders)) {
             for (IResource folder : folders) {
                 if (getProjectService().isComponentFolder(folder)) {
@@ -434,7 +431,7 @@ public class RefreshResourceActionController extends ActionController {
         monitorCheck(monitor);
         List<IResource> files = getProjectService().getResourcesByType(selectedResources, IResource.FILE);
         if (Utils.isNotEmpty(files)) {
-            List<IResource> sourceResources = new ArrayList<IResource>(files.size());
+            List<IResource> sourceResources = new ArrayList<>(files.size());
             for (IResource file : files) {
                 if (getProjectService().isSourceResource(file)) {
                     sourceResources.add(file);
@@ -463,7 +460,7 @@ public class RefreshResourceActionController extends ActionController {
     }
 
     @Override
-    public void postRun(IAction action) {}
+    public void postRun() {}
 
     private boolean checkForDirtyResource(IResource resource) {
         try {
@@ -527,7 +524,7 @@ public class RefreshResourceActionController extends ActionController {
         return false;
     }
 
-    private boolean checkForOpenFileWork(IFile file) {
+    private static boolean checkForOpenFileWork(IFile file) {
         IWorkbenchWindow[] windows = PlatformUI.getWorkbench().getWorkbenchWindows();
         if (Utils.isNotEmpty(windows)) {
             // loop thru open windows to check if file is open if open, check w/ user
