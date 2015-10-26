@@ -42,7 +42,6 @@ import org.w3c.dom.Element;
 import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
 
-import com.salesforce.ide.core.factories.FactoryException;
 import com.salesforce.ide.core.internal.context.ContainerDelegate;
 import com.salesforce.ide.core.internal.controller.Controller;
 import com.salesforce.ide.core.internal.utils.Constants;
@@ -81,18 +80,18 @@ public class PackageManifestController extends Controller {
     private static final String CACHE_ISSUBTYPE = "isSubType"; //$NON-NLS-1$
     private static final String CACHE_PARENT = "parent"; //$NON-NLS-1$
 
-    private final Map<String, PackageTreeNode> map = new HashMap<String, PackageTreeNode>();
+    private final Map<String, PackageTreeNode> map = new HashMap<>();
     private PackageTreeNode root;
     private FileMetadataExt ext;
     private Connection connection;
     private Document cache;
     private Document manifestDoc;
 
-    private final List<String> typeList = new ArrayList<String>();
-    private final List<String> subTypes = new ArrayList<String>();
-    private final Map<String, String> parentTypes = new HashMap<String, String>();
+    private final List<String> typeList = new ArrayList<>();
+    private final List<String> subTypes = new ArrayList<>();
+    private final Map<String, String> parentTypes = new HashMap<>();
 
-    public PackageManifestController() throws ForceProjectException {
+    public PackageManifestController() {
         model = new OrgModel();
     }
 
@@ -131,7 +130,7 @@ public class PackageManifestController extends Controller {
             } else {
                 if (logger.isDebugEnabled()) {
                     try {
-                        logger.debug("Cleared manifest cache " + oldCache.toURL().toExternalForm()); //$NON-NLS-1$
+                        logger.debug("Cleared manifest cache " + oldCache.toURI().toURL().toExternalForm()); //$NON-NLS-1$
                     } catch (MalformedURLException e) {}
                 }
                 oldCache.delete();
@@ -192,7 +191,7 @@ public class PackageManifestController extends Controller {
             File file = new File(url.getFile());
             if (logger.isDebugEnabled()) {
                 try {
-                    logger.debug("Cleared manifest cache " + file.toURL().toExternalForm()); //$NON-NLS-1$
+                    logger.debug("Cleared manifest cache " + file.toURI().toURL().toExternalForm()); //$NON-NLS-1$
                 } catch (MalformedURLException e) {}
             }
             file.delete();
@@ -200,7 +199,7 @@ public class PackageManifestController extends Controller {
         }
     }
 
-    Map<String, Throwable> erroneousComponentTypes = new HashMap<String, Throwable>();
+    Map<String, Throwable> erroneousComponentTypes = new HashMap<>();
     boolean exceptionOccurred = false;
 
     /**
@@ -245,9 +244,6 @@ public class PackageManifestController extends Controller {
             } catch (InterruptedException e) {
                 exceptionOccurred = true;
                 logger.debug(e);
-            } catch (FactoryException e) {
-                exceptionOccurred = true;
-                logger.debug(e);
             }
 
         } else if (ext == null || exceptionOccurred) {
@@ -265,7 +261,7 @@ public class PackageManifestController extends Controller {
         logAndDisplayWarnMsgIfNeeded(erroneousComponentTypes);
     }
 
-    private void fillTypeStructures(String key) throws FactoryException {
+    private void fillTypeStructures(String key) {
         if (!ContainerDelegate.getInstance().getFactoryLocator().getComponentFactory().isRegisteredComponentType(key)) {
             return;
         }
@@ -298,9 +294,7 @@ public class PackageManifestController extends Controller {
                 } catch (Throwable e) {
                     throw new InvocationTargetException(e);
                 } finally {
-                    if (monitor != null) {
-                        monitor.done();
-                    }
+                    monitor.done();
                 }
             }
         });
@@ -314,13 +308,12 @@ public class PackageManifestController extends Controller {
      * @throws ParserConfigurationException
      * @throws TransformerException
      * @throws IOException
-     * @throws FactoryException
      * @throws ForceConnectionException
      * @throws ForceRemoteException
      * @throws InterruptedException
      */
     protected void updateCacheWork(URL cacheUrl, IProgressMonitor monitor) throws ParserConfigurationException,
-    TransformerException, IOException, FactoryException, ForceConnectionException, ForceRemoteException,
+    TransformerException, IOException, ForceConnectionException, ForceRemoteException,
     InterruptedException {
         DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
         DocumentBuilder builder = factory.newDocumentBuilder();
@@ -446,7 +439,7 @@ public class PackageManifestController extends Controller {
 
     public String getPath(PackageTreeNode node) {
         StringBuilder builder = new StringBuilder();
-        Stack<String> stack = new Stack<String>();
+        Stack<String> stack = new Stack<>();
         while (node != root) {
             String path = node.getName();
             if (node instanceof ComponentTypeNode) {
@@ -464,7 +457,7 @@ public class PackageManifestController extends Controller {
         return builder.toString();
     }
 
-    public String getPathForComponentType(String componentType) throws FactoryException {
+    public String getPathForComponentType(String componentType) {
         return getComponentTypeName(ContainerDelegate.getInstance().getFactoryLocator().getComponentFactory()
             .getComponentByComponentType(componentType));
     }
@@ -584,9 +577,7 @@ public class PackageManifestController extends Controller {
                 } catch (Throwable e) {
                     throw new InvocationTargetException(e);
                 } finally {
-                    if (monitor != null) {
-                        monitor.done();
-                    }
+                    monitor.done();
                 }
             }
         });
@@ -604,7 +595,7 @@ public class PackageManifestController extends Controller {
         constructTypeToSubTypeCompMap();
         List<Node> componentTypes = PackageManifestDocumentUtils.getComponentTypes(manifestDoc);
 
-        Map<String, Throwable> erroneousComponentTypes = new HashMap<String, Throwable>();
+        Map<String, Throwable> erroneousComponentTypes = new HashMap<>();
         for (Node componentType : componentTypes) {
             String componentTypeName = PackageManifestDocumentUtils.getComponentName(componentType);
 
@@ -720,25 +711,22 @@ public class PackageManifestController extends Controller {
         if (Utils.isNotEmpty(erroneousComponentTypes)) {
             StringBuilder warningDialogMsg = new StringBuilder();
             StringBuilder logMsg = new StringBuilder();
-            warningDialogMsg.append("Exception happened when resolving component type(s), "
-                    + "so no component will be added to package manifest editor for these types. \n");
-            logMsg.append("Exception happened when PME creating model for: \n");
+            warningDialogMsg.append("The following component type(s) are not supported, so no component will be added to the package manifest editor for these types. \n");
+            logMsg.append("Components skipped: \n");
             for (String compName : erroneousComponentTypes.keySet()) {
                 warningDialogMsg.append("* ").append(compName).append("\n");
                 Throwable throwable = erroneousComponentTypes.get(compName);
                 logMsg.append("* Component type '").append(compName).append("' ");
 
                 if (Utils.isNotEmpty(throwable)) {
-                    logger.debug("Exception happened for component type '" + compName + "' in PME.", throwable);
+                    logger.debug("Component type '" + compName + "' not supported in package manifest editor.", throwable);
 
                 } else {
-                    logMsg
-                    .append("No exception occurred but the component factory is unable to resolve component type '"
-                            + compName + "'");
+                    logMsg.append("No exception occurred but the component factory is unable to resolve component type '" + compName + "'");
                 }
 
             }
-            warningDialogMsg.append("See log for detail exception messages.");
+            warningDialogMsg.append("See log for detailed messages.");
             Utils.openWarn(Messages.PackageManifest_content_Warning_text, warningDialogMsg.toString());
         }
     }
@@ -825,7 +813,7 @@ public class PackageManifestController extends Controller {
         root = new PackageTreeNode(null);
         List<Node> componentTypes = getComponentTypesFromCache(cache, false);
 
-        Map<String, Throwable> erroneousComponentTypes = new HashMap<String, Throwable>();
+        Map<String, Throwable> erroneousComponentTypes = new HashMap<>();
         for (Node componentType : componentTypes) {
             Component comp = null;
             try {
@@ -972,14 +960,10 @@ public class PackageManifestController extends Controller {
 
                     CustomObjectComponentNode componentNode = new CustomObjectComponentNode(compName);
 
-                    try {
-                        if (ContainerDelegate.getInstance().getFactoryLocator().getComponentFactory()
-                                .isRegisteredComponentType(subName)) {
-                            componentNode.setComponent(ContainerDelegate.getInstance().getFactoryLocator()
-                                .getComponentFactory().getComponentByComponentType(subName));
-                        }
-                    } catch (FactoryException e) {
-                        logger.warn("Unable to aquire subtype " + subName + " from component factory", e); //$NON-NLS-1$  //$NON-NLS-2$
+                    if (ContainerDelegate.getInstance().getFactoryLocator().getComponentFactory()
+                            .isRegisteredComponentType(subName)) {
+                        componentNode.setComponent(ContainerDelegate.getInstance().getFactoryLocator()
+                            .getComponentFactory().getComponentByComponentType(subName));
                     }
 
                     customObjectFolderNode.addChild(componentNode);
@@ -996,7 +980,7 @@ public class PackageManifestController extends Controller {
     }
 
     public static List<Node> getComponentTypesFromCache(Document doc, boolean isSubType) {
-        List<Node> list = new ArrayList<Node>();
+        List<Node> list = new ArrayList<>();
         Node packageNode = PackageManifestDocumentUtils.getPackageNode(doc);
 
         if (packageNode != null) {
@@ -1016,7 +1000,7 @@ public class PackageManifestController extends Controller {
 
     public static List<Node> getSubComponentTypes(Document doc, String parent) {
         List<Node> componentTypes = getComponentTypesFromCache(doc, true);
-        List<Node> retList = new ArrayList<Node>(componentTypes);
+        List<Node> retList = new ArrayList<>(componentTypes);
         for (Node componentType : componentTypes) {
             if (!componentType.getAttributes().getNamedItem(CACHE_PARENT).getNodeValue().equals(parent)) {
                 retList.remove(componentType);

@@ -31,7 +31,6 @@ import org.eclipse.swt.graphics.Color;
 import com.salesforce.ide.core.internal.context.ContainerDelegate;
 import com.salesforce.ide.core.internal.utils.ForceExceptionUtils;
 import com.salesforce.ide.core.internal.utils.Utils;
-import com.salesforce.ide.core.project.ForceProjectException;
 import com.salesforce.ide.core.remote.registries.DescribeObjectRegistry;
 import com.salesforce.ide.ui.editors.ForceIdeEditorsPlugin;
 import com.salesforce.ide.ui.editors.apex.util.ApexCodeColorProvider;
@@ -88,7 +87,7 @@ public class ApexCodeScanner extends RuleBasedScanner {
         IToken annotations =
                 new Token(new TextAttribute(apexCodeColorProvider.getColor(ApexCodeColorProvider.ANNOTATION)));
 
-        List<IRule> rules = new ArrayList<IRule>();
+        List<IRule> rules = new ArrayList<>();
 
         // end of line rule
         rules.add(new EndOfLineRule("//", comment));
@@ -109,7 +108,7 @@ public class ApexCodeScanner extends RuleBasedScanner {
         setRules(rules.toArray(new IRule[rules.size()]));
     }
 
-    WordRule generateKeywordRule(IProject project) {
+    public WordRule generateKeywordRule(IProject project) {
         IToken keyword = new Token(getBoldTextAttribute(apexCodeColorProvider.getColor(ApexCodeColorProvider.KEYWORD)));
         IToken other = new Token(new TextAttribute(apexCodeColorProvider.getColor(ApexCodeColorProvider.DEFAULT)));
 
@@ -151,7 +150,7 @@ public class ApexCodeScanner extends RuleBasedScanner {
         return wordRule;
     }
 
-    public DescribeObjectRegistry getDescribeObjectRegistry() throws ForceProjectException {
+    public DescribeObjectRegistry getDescribeObjectRegistry() {
         return (DescribeObjectRegistry) ContainerDelegate.getInstance().getBean(DescribeObjectRegistry.class);
     }
 
@@ -165,7 +164,7 @@ public class ApexCodeScanner extends RuleBasedScanner {
         return super.read();
     }
 
-    private TextAttribute getBoldTextAttribute(Color color) {
+    private static TextAttribute getBoldTextAttribute(Color color) {
         TextAttribute textAttribute = new TextAttribute(color, null, SWT.BOLD);
         return textAttribute;
     }

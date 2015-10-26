@@ -17,25 +17,16 @@ import java.util.List;
 import org.apache.log4j.Logger;
 import org.eclipse.core.resources.IProject;
 import org.eclipse.core.resources.IResource;
-import org.eclipse.core.runtime.IAdaptable;
 import org.eclipse.core.runtime.IProgressMonitor;
 import org.eclipse.core.runtime.SubProgressMonitor;
-import org.eclipse.core.runtime.dynamichelpers.IExtensionTracker;
-import org.eclipse.jface.action.IAction;
 import org.eclipse.jface.dialogs.MessageDialog;
 import org.eclipse.jface.operation.IRunnableWithProgress;
 import org.eclipse.jface.viewers.ISelection;
+import org.eclipse.jface.viewers.StructuredSelection;
 import org.eclipse.jface.wizard.WizardDialog;
 import org.eclipse.swt.widgets.Shell;
-import org.eclipse.ui.IPageListener;
-import org.eclipse.ui.IPartService;
-import org.eclipse.ui.IPerspectiveListener;
-import org.eclipse.ui.ISelectionService;
-import org.eclipse.ui.IWorkbench;
-import org.eclipse.ui.IWorkbenchPage;
 import org.eclipse.ui.IWorkbenchWindow;
 import org.eclipse.ui.PlatformUI;
-import org.eclipse.ui.WorkbenchException;
 import org.eclipse.ui.progress.IProgressService;
 
 import com.salesforce.ide.core.factories.ComponentFactory;
@@ -47,12 +38,12 @@ import com.salesforce.ide.core.internal.context.ContainerDelegate;
 import com.salesforce.ide.core.internal.utils.DialogUtils;
 import com.salesforce.ide.core.internal.utils.ForceExceptionUtils;
 import com.salesforce.ide.core.internal.utils.Utils;
-import com.salesforce.ide.core.project.ForceProjectException;
 import com.salesforce.ide.core.remote.InsufficientPermissionsException;
 import com.salesforce.ide.core.remote.InvalidLoginException;
 import com.salesforce.ide.core.services.PackageRetrieveService;
 import com.salesforce.ide.core.services.ProjectService;
 import com.salesforce.ide.core.services.ServiceLocator;
+import com.salesforce.ide.ui.handlers.SynchronizeHandler;
 import com.salesforce.ide.ui.internal.utils.UIMessages;
 
 public abstract class ActionController {
@@ -66,13 +57,8 @@ public abstract class ActionController {
     protected boolean isInSync = true;
 
     //   C O N S T R U C T O R S
-    public ActionController() throws ForceProjectException {
+    public ActionController() {
         super();
-    }
-
-    public ActionController(IProject project, IWorkbenchWindow workbenchWindow) {
-        this.project = project;
-        this.workbenchWindow = workbenchWindow;
     }
 
     //   M E T H O D S
@@ -109,7 +95,7 @@ public abstract class ActionController {
 
     public void addSelectedResource(IResource selectedResource) {
         if (selectedResources == null) {
-            selectedResources = new ArrayList<IResource>();
+            selectedResources = new ArrayList<>();
         }
         selectedResources.add(selectedResource);
     }
@@ -162,9 +148,9 @@ public abstract class ActionController {
         this.workbenchWindow = workbenchWindow;
     }
 
-    public abstract boolean preRun(IAction action);
+    public abstract boolean preRun();
 
-    public abstract void postRun(IAction action);
+    public abstract void postRun();
 
     /* (non-Javadoc)
      * @see com.salesforce.ide.ui.actions.IActionController#getWizardDialog()
@@ -180,79 +166,6 @@ public abstract class ActionController {
             return workbenchWindow.getShell();
         }
         return null;
-    }
-
-    public boolean close() {
-        return workbenchWindow.close();
-    }
-
-    public IWorkbenchPage getActivePage() {
-        return workbenchWindow.getActivePage();
-    }
-
-    public IExtensionTracker getExtensionTracker() {
-        return workbenchWindow.getExtensionTracker();
-    }
-
-    public IWorkbenchPage[] getPages() {
-        return workbenchWindow.getPages();
-    }
-
-    public IPartService getPartService() {
-        return workbenchWindow.getPartService();
-    }
-
-    public ISelectionService getSelectionService() {
-        return workbenchWindow.getSelectionService();
-    }
-
-    public IWorkbench getWorkbench() {
-        return workbenchWindow.getWorkbench();
-    }
-
-    public boolean isApplicationMenu(String menuId) {
-        return workbenchWindow.isApplicationMenu(menuId);
-    }
-
-    public IWorkbenchPage openPage(IAdaptable input) throws WorkbenchException {
-        return workbenchWindow.openPage(input);
-    }
-
-    public IWorkbenchPage openPage(String perspectiveId, IAdaptable input) throws WorkbenchException {
-        return workbenchWindow.openPage(perspectiveId, input);
-    }
-
-    public void run(boolean fork, boolean cancelable, IRunnableWithProgress runnable) throws InvocationTargetException,
-    InterruptedException {
-        workbenchWindow.run(fork, cancelable, runnable);
-    }
-
-    public void setActivePage(IWorkbenchPage page) {
-        workbenchWindow.setActivePage(page);
-    }
-
-    public void addPageListener(IPageListener listener) {
-        workbenchWindow.addPageListener(listener);
-    }
-
-    public void addPerspectiveListener(IPerspectiveListener listener) {
-        workbenchWindow.addPerspectiveListener(listener);
-    }
-
-    public void removePageListener(IPageListener listener) {
-        workbenchWindow.removePageListener(listener);
-    }
-
-    public void removePerspectiveListener(IPerspectiveListener listener) {
-        workbenchWindow.removePerspectiveListener(listener);
-    }
-
-    public Object getService(Class<?> api) {
-        return workbenchWindow.getService(api);
-    }
-
-    public boolean hasService(Class<?> api) {
-        return workbenchWindow.hasService(api);
     }
 
     protected boolean syncCheck(boolean cancel) {
@@ -277,15 +190,15 @@ public abstract class ActionController {
                 if (cancel) {
                     logger.warn("Unable to perform sync check", ForceExceptionUtils.getRootCause(e));
                     DialogUtils.getInstance().cancelMessage(
-                        UIMessages.getString("DeploymentAction.SyncCheckError.title"),
+                        UIMessages.getString("Deployment.SyncCheckError.title"),
                         UIMessages
-                        .getString("DeploymentAction.SyncCheckError.message", new String[] { ForceExceptionUtils
+                        .getString("Deployment.SyncCheckError.message", new String[] { ForceExceptionUtils
                                 .getStrippedRootCauseMessage(cause) }), MessageDialog.WARNING);
                 } else {
                     logger.warn("Unable to perform sync check: " + ForceExceptionUtils.getRootCauseMessage(e));
                     DialogUtils.getInstance().continueMessage(
-                        UIMessages.getString("DeploymentAction.SyncCheckError.title"),
-                        UIMessages.getString("DeploymentAction.SyncCheckError.message",
+                        UIMessages.getString("Deployment.SyncCheckError.title"),
+                        UIMessages.getString("Deployment.SyncCheckError.message",
                             new String[] { ForceExceptionUtils.getStrippedRootCauseMessage(cause) }),
                             MessageDialog.WARNING);
 
@@ -351,16 +264,7 @@ public abstract class ActionController {
         return new Thread() {
             @Override
             public void run() {
-                SyncAction syncAction = null;
-                try {
-                    syncAction = new SyncAction();
-                    syncAction.setProject(project);
-                    syncAction.run(null);
-                } catch (ForceProjectException e) {
-                    logger.error(UIMessages.getString("DeploymentAction.SyncCheck.error"), e);
-                    Utils.openError(e, UIMessages.getString("DeploymentAction.SyncCheckError.title"), UIMessages
-                        .getString("DeploymentAction.SyncCheckError.message"));
-                }
+                SynchronizeHandler.execute(PlatformUI.getWorkbench(), new StructuredSelection(project));
             }
         };
     }

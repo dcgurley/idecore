@@ -31,7 +31,7 @@ public class StopWatch {
     private boolean keepTaskList = true;
 
     /** List of TaskInfo objects */
-    private final List<TaskInfo> taskList = new LinkedList<TaskInfo>();
+    private final List<TaskInfo> taskList = new LinkedList<>();
     private TaskInfo lastTaskInfo = null;
 
     /**
@@ -176,6 +176,7 @@ public class StopWatch {
         } else {
             TaskInfo[] tasks = getTaskInfo();
             Arrays.sort(tasks, new Comparator<TaskInfo>() {
+                @Override
                 public int compare(TaskInfo o1, TaskInfo o2) {
                     if (o1 == o2 || o1.getAverage() == o2.getAverage()) {
                         return 0;
@@ -219,7 +220,7 @@ public class StopWatch {
         return sb.toString();
     }
 
-    private void headerPrettyPrint(StringBuffer strBuff) {
+    private static void headerPrettyPrint(StringBuffer strBuff) {
         strBuff.append("-----------------------------------------\n").append("ms     avg     %     Task name (cnt)\n")
         .append("-----------------------------------------\n");
     }

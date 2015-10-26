@@ -37,20 +37,21 @@ public class SharedTextColors implements ISharedTextColors {
     /*
      * @see ISharedTextColors#getColor(RGB)
      */
+    @Override
     public Color getColor(RGB rgb) {
         if (rgb == null) {
             return null;
         }
 
         if (fDisplayTable == null) {
-            fDisplayTable = new HashMap<Display, Map<RGB, Color>>(2);
+            fDisplayTable = new HashMap<>(2);
         }
 
         Display display = Display.getCurrent();
 
         Map<RGB, Color> colorTable = fDisplayTable.get(display);
         if (colorTable == null) {
-            colorTable = new HashMap<RGB, Color>(10);
+            colorTable = new HashMap<>(10);
             fDisplayTable.put(display, colorTable);
         }
 
@@ -66,6 +67,7 @@ public class SharedTextColors implements ISharedTextColors {
     /*
      * @see ISharedTextColors#dispose()
      */
+    @Override
     public void dispose() {
         if (fDisplayTable != null) {
             Iterator<Map<RGB, Color>> j = fDisplayTable.values().iterator();

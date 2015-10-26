@@ -36,7 +36,7 @@ public class ConnectionFactory extends BaseFactory {
     private static final Logger logger = Logger.getLogger(ConnectionFactory.class);
 
     private static ConcurrentMap<ForceProject, Connection> connections =
-            new ConcurrentHashMap<ForceProject, Connection>();
+            new ConcurrentHashMap<>();
 
     protected DescribeObjectRegistry describeObjectRegistry = null;
     protected MergeFieldsRegistry mergeFieldsRegistry = null;
@@ -230,7 +230,7 @@ public class ConnectionFactory extends BaseFactory {
         clearCache();
     }
 
-    private void logStoredConnections() {
+    private static void logStoredConnections() {
         if (connections == null || Utils.isEmpty(connections.keySet())) {
             logger.info("No cached connections");
             return;

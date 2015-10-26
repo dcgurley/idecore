@@ -14,8 +14,6 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.lang.reflect.InvocationTargetException;
-import java.util.Date;
 import java.util.zip.CRC32;
 import java.util.zip.Deflater;
 
@@ -29,21 +27,21 @@ import org.eclipse.core.resources.ResourceAttributes;
 import org.eclipse.core.runtime.CoreException;
 import org.eclipse.core.runtime.IProgressMonitor;
 import org.eclipse.core.runtime.NullProgressMonitor;
+import org.eclipse.core.runtime.QualifiedName;
 import org.eclipse.core.runtime.SubProgressMonitor;
-import org.eclipse.core.runtime.content.IContentDescription;
-import org.eclipse.core.runtime.content.IContentType;
 
 import com.salesforce.ide.core.internal.utils.Constants;
 import com.salesforce.ide.core.internal.utils.Messages;
 import com.salesforce.ide.core.internal.utils.QualifiedNames;
+import com.salesforce.ide.core.internal.utils.QuietCloseable;
 import com.salesforce.ide.core.internal.utils.ResourceProperties;
 import com.salesforce.ide.core.internal.utils.Utils;
 import com.salesforce.ide.core.project.ForceProjectException;
 import com.salesforce.ide.core.project.MarkerUtils;
 
 /**
- * This class encapsulate attributes and operations that handle resource management such as filesystem access and
- * attribute storage and rendering.
+ * This class encapsulate attributes and operations that handle resource
+ * management such as filesystem access and attribute storage and rendering.
  * 
  * @author cwall
  */
@@ -51,17 +49,16 @@ import com.salesforce.ide.core.project.MarkerUtils;
 public abstract class ComponentResource implements IComponent {
 
     private static final Logger logger = Logger.getLogger(ComponentResource.class);
-    public static final long INIT_CHECKSUM = -1;
+    private static final long INIT_CHECKSUM = -1;
 
-    protected String metadataFilePath = null;
-    protected long bodyChecksum = INIT_CHECKSUM;
-    protected long originalBodyChecksum = INIT_CHECKSUM;
-    protected IFile resource = null;
-    protected byte[] file = null;
-    protected long fetchTime = -1;
+    private static final QualifiedName QN_ORIGINAL_BODY_CHECKSUM = new QualifiedName(Constants.FILE_PROP_PREFIX_ID, Constants.ORIGINAL_BODY_CHECKSUM);
+
+    private String metadataFilePath;
+    private IFile resource;
+    private byte[] file;
 
     //   C O N S T R U C T O R S
-    public ComponentResource() {
+    protected ComponentResource() {
         super();
     }
 
@@ -90,28 +87,18 @@ public abstract class ComponentResource implements IComponent {
 
     @Override
     public long getBodyChecksum() {
-        return bodyChecksum;
-    }
+        final byte[] content = this.file;
+        if (null == content) return INIT_CHECKSUM;
 
-    public void setBodyChecksum(long bodyChecksum) {
-        this.bodyChecksum = bodyChecksum;
+        CRC32 checksum = new CRC32();
+        checksum.update(content, 0, content.length);
+        return checksum.getValue();
     }
 
     @Override
     public long getOriginalBodyChecksum() {
-        return originalBodyChecksum;
-    }
-
-    public void setOriginalBodyChecksum(long originalBodyChecksum) {
-        this.originalBodyChecksum = originalBodyChecksum;
-    }
-
-    public long getFetchTime() {
-        return fetchTime;
-    }
-
-    public void setFetchTime(long fetchTime) {
-        this.fetchTime = fetchTime;
+        final Long value = getOriginalBodyChecksum(getFileResource());
+        return null == value ? INIT_CHECKSUM : value.longValue();
     }
 
     @Override
@@ -137,7 +124,7 @@ public abstract class ComponentResource implements IComponent {
         }
     }
 
-    public IFile getFileResource(IProject project, IProgressMonitor monitor) throws InterruptedException {
+    private IFile getFileResource(IProject project, IProgressMonitor monitor) throws InterruptedException {
         if (resource == null && project != null) {
             resource = createFile(project, monitor);
         }
@@ -184,12 +171,9 @@ public abstract class ComponentResource implements IComponent {
         return ResourceProperties.getProperty(res, QualifiedNames.QN_NAMESPACE_PREFIX);
     }
 
-    protected String getOriginalBodyChecksum(IResource res) {
-        return ResourceProperties.getProperty(res, QualifiedNames.QN_ORIGINAL_BODY_CHECKSUM);
-    }
-
-    protected String getSystemModStamp(IResource res) {
-        return ResourceProperties.getProperty(res, QualifiedNames.QN_SYSTEM_MODSTAMP);
+    private static Long getOriginalBodyChecksum(IResource res) {
+        final String value = null == res ? null : ResourceProperties.getProperty(res, QN_ORIGINAL_BODY_CHECKSUM);
+        return null == value ? null : Long.valueOf(value);
     }
 
     protected String getLastModifiedById(IResource res) {
@@ -220,10 +204,6 @@ public abstract class ComponentResource implements IComponent {
         return ResourceProperties.getProperty(res, QualifiedNames.QN_PACKAGE_NAME);
     }
 
-    protected String getFetchTime(IResource res) {
-        return ResourceProperties.getProperty(res, QualifiedNames.QN_FETCH_DATE);
-    }
-
     protected String getState(IResource res) {
         return ResourceProperties.getProperty(res, QualifiedNames.QN_STATE);
     }
@@ -231,7 +211,7 @@ public abstract class ComponentResource implements IComponent {
     /**
      * Set the base file properties valid for all Force.com objects
      */
-    protected void saveFileProperties(IFile file) {
+    private void saveFileProperties(IFile file) {
         ResourceProperties.setProperty(file, QualifiedNames.QN_ID, getId());
         ResourceProperties.setProperty(file, QualifiedNames.QN_FILE_NAME, getFileName());
         ResourceProperties.setProperty(file, QualifiedNames.QN_FULL_NAME, getFullName());
@@ -249,10 +229,6 @@ public abstract class ComponentResource implements IComponent {
         ResourceProperties.setLong(file, QualifiedNames.QN_LAST_MODIFIED_DATE, (getLastModifiedDate() != null
                 ? getLastModifiedDate().getTimeInMillis() : 0));
 
-        ResourceProperties.setLong(file, QualifiedNames.QN_ORIGINAL_BODY_CHECKSUM, getOriginalBodyChecksum());
-
-        ResourceProperties.setLong(file, QualifiedNames.QN_FETCH_DATE, fetchTime);
-
         saveAdditionalFileProperties(file);
     }
 
@@ -263,8 +239,8 @@ public abstract class ComponentResource implements IComponent {
      */
     protected abstract void saveAdditionalFileProperties(IFile file);
 
-    public IFile saveToFile(IProject project, ProjectPackage projectPackage, IProgressMonitor monitor)
-            throws InvocationTargetException, CoreException, IOException, InterruptedException, ForceProjectException {
+    IFile saveToFile(IProject project, ProjectPackage projectPackage, IProgressMonitor monitor)
+            throws CoreException, InterruptedException, ForceProjectException {
         monitor.subTask(getFileName());
         setProjectPackageProperties(projectPackage);
         resource = createFile(project, monitor);
@@ -281,8 +257,7 @@ public abstract class ComponentResource implements IComponent {
         }
     }
 
-    public IFile saveToFile(boolean saveProperties, IProgressMonitor monitor) throws InvocationTargetException,
-            CoreException, InterruptedException, ForceProjectException {
+    public IFile saveToFile(boolean saveProperties, IProgressMonitor monitor) throws CoreException, InterruptedException, ForceProjectException {
         monitorCheck(monitor);
 
         if (resource == null) {
@@ -309,6 +284,7 @@ public abstract class ComponentResource implements IComponent {
                 removeCaseSensitiveDupFile(resource);
                 resource.create(stream, true, new SubProgressMonitor(monitor, 1));
             }
+            resource.setPersistentProperty(QN_ORIGINAL_BODY_CHECKSUM, "" + getBodyChecksum());
 
             // create parallel folder for folder metadata
             if (Constants.FOLDER.equals(getComponentType())) {
@@ -349,7 +325,7 @@ public abstract class ComponentResource implements IComponent {
      * @param file
      * @throws CoreException
      */
-    private void removeCaseSensitiveDupFile(IFile file) throws CoreException {
+    private static void removeCaseSensitiveDupFile(IFile file) throws CoreException {
         Resource fileResource = (Resource) file;
         // now look for a matching case variant in the tree
         IResource variant = fileResource.findExistingResourceVariant(fileResource.getFullPath());
@@ -363,37 +339,13 @@ public abstract class ComponentResource implements IComponent {
         }
     }
 
-    public void handleReadOnlyFile() {
-        if (!resource.exists()) {
-            return;
-        }
-
-        // get current, existing checksum to compare incoming, remote checksum to determine if content is equal
-        String content = "";
-        try {
-            content = getContentString(resource);
-        } catch (Exception e) {
-            logger.error("Unable to get content for file '" + resource.getProjectRelativePath().toPortableString()
-                    + "'", e);
-        }
-
-        long currentFileChecksum = generateChecksum(content);
-        if (currentFileChecksum != getBodyChecksum()) {
-            MarkerUtils.getInstance().applyDirty(resource,
-                Messages.getString("Markers.ReadOnlyLocalFileNotInSyncWithRemote.message"));
-            ResourceProperties.setLong(resource, QualifiedNames.QN_ORIGINAL_BODY_CHECKSUM, currentFileChecksum);
-            if (logger.isInfoEnabled()) {
-                logger.info("Local body is not in sync w/ remote body - updating original "
-                        + "checksum and dirtying file '" + resource.getProjectRelativePath().toPortableString() + "'");
-            }
-        } else {
-            if (logger.isDebugEnabled()) {
-                logger.debug("Current, local file content is the same as remote instance");
-            }
+    void handleReadOnlyFile() {
+        if (getOriginalBodyChecksum() != getBodyChecksum()) {
+            MarkerUtils.getInstance().applyDirty(resource, Messages.getString("Markers.ReadOnlyLocalFileNotInSyncWithRemote.message"));
         }
     }
 
-    protected final IFile createFile(IProject project, IProgressMonitor monitor) throws InterruptedException {
+    private final IFile createFile(IProject project, IProgressMonitor monitor) throws InterruptedException {
         if (Utils.isEmpty(getMetadataFilePath()) || project == null) {
             logger.warn("Unable to create file - filepath and/or project is null");
             return null;
@@ -422,7 +374,7 @@ public abstract class ComponentResource implements IComponent {
         }
     }
 
-    protected final void createParents(IResource childResource, IProgressMonitor monitor) throws InterruptedException {
+    private final void createParents(IResource childResource, IProgressMonitor monitor) throws InterruptedException {
         monitorCheck(monitor);
         IResource parentResource = childResource.getParent();
 
@@ -432,7 +384,7 @@ public abstract class ComponentResource implements IComponent {
         }
     }
 
-    protected final IFolder createFolder(IResource resource, IProgressMonitor monitor) throws InterruptedException {
+    private final IFolder createFolder(IResource resource, IProgressMonitor monitor) throws InterruptedException {
         if (resource.exists() && resource.getType() == IResource.FILE && resource.getParent() != null
                 && resource.getParent().getType() == IResource.FOLDER) {
             // strip file extension
@@ -452,7 +404,7 @@ public abstract class ComponentResource implements IComponent {
         }
     }
 
-    protected final IFolder createFolder(IFolder folder, IProgressMonitor monitor) throws InterruptedException {
+    private final IFolder createFolder(IFolder folder, IProgressMonitor monitor) throws InterruptedException {
         monitorCheck(monitor);
         if (folder == null || folder.exists()) {
             return folder;
@@ -481,7 +433,7 @@ public abstract class ComponentResource implements IComponent {
             return null;
         }
 
-        if (includeBody && (isTextContent() || isMetadataInstance())) {
+        if (includeBody) {
             loadBodyFromFile(getFileResource());
         }
 
@@ -498,47 +450,14 @@ public abstract class ComponentResource implements IComponent {
         return (Component) this;
     }
 
-    protected void loadBodyFromFile(IFile file) throws IOException, CoreException {
-        String contentStr = getContentString(file);
-        if (Utils.isNotEmpty(contentStr)) {
-            setBody(contentStr);
-            setFile(contentStr.getBytes());
+    private void loadBodyFromFile(IFile file) throws IOException, CoreException {
+        final byte[] content = Utils.getBytesFromFile(file);
+        if (null != content) {
+            this.file = content;
         }
     }
 
-    protected boolean isTextContentType() {
-        String contentType = getContentType();
-        return Utils.isNotEmpty(contentType) ? true : false;
-    }
-
-    protected String getContentType() {
-        String contentTypeName = null;
-
-        if (getFileResource() != null) {
-            try {
-                IContentDescription contentDescription = getFileResource().getContentDescription();
-                if (contentDescription != null) {
-                    IContentType contentType = contentDescription.getContentType();
-                    contentTypeName = contentType.getName();
-                } else {
-                    logger.warn("No content type found for file '"
-                            + getFileResource().getProjectRelativePath().toPortableString() + "'");
-                }
-            } catch (CoreException e) {
-                String logMessage = Utils.generateCoreExceptionLog(e);
-                logger.warn("Unable to determine content type for file '"
-                        + getFileResource().getProjectRelativePath().toPortableString() + "': " + logMessage);
-            }
-        }
-
-        return contentTypeName;
-    }
-
-    protected String getContentString(IFile file) throws IOException, CoreException {
-        return Utils.getContentString(file);
-    }
-
-    public void loadProperties(IFile file) {
+    private void loadProperties(IFile file) {
         if (file == null) {
             logger.warn("Unable to load file properties - file is null");
             return;
@@ -550,37 +469,12 @@ public abstract class ComponentResource implements IComponent {
             return;
         }
 
-        // get body checksum from current, local content of file
-        updateBodyChecksum();
-
-        // get locally stored original - value of retrieved content - checksum
-        String originalBodyChecksumString = getOriginalBodyChecksum(file);
-        long originalBodyChecksum = INIT_CHECKSUM;
-        if (Utils.isNotEmpty(originalBodyChecksumString)) {
-            originalBodyChecksum = Long.parseLong(originalBodyChecksumString);
-        }
-
-        // it could be that the original checksum was lost or not captured
-        // if so, set value to current, local body checksum
-        if (originalBodyChecksum > INIT_CHECKSUM) {
-            setOriginalBodyChecksum(originalBodyChecksum);
-        } else {
-            setOriginalBodyChecksum(getBodyChecksum());
-        }
-
-        // load date last fetched
-        String fetchDateStr = getFetchTime(file);
-        if (Utils.isNotEmpty(fetchDateStr)) {
-            long fetchDate = Long.parseLong(fetchDateStr);
-            setFetchTime(fetchDate);
-        }
-
         loadComponentProperties(file);
     }
 
     protected abstract void loadComponentProperties(IFile file);
 
-    protected void setFileAccess(IFile file) {
+    private void setFileAccess(IFile file) {
         if (file != null && isInstalled()) {
             ResourceAttributes resourceAttributes = new ResourceAttributes();
             resourceAttributes.setReadOnly(true);
@@ -597,52 +491,7 @@ public abstract class ComponentResource implements IComponent {
         }
     }
 
-    @Override
-    public void initChecksum() {
-        updateBodyChecksum();
-        setOriginalBodyChecksum(bodyChecksum);
-
-        if (logger.isDebugEnabled()) {
-            logger.debug("Set body [" + getBodyChecksum() + "] and orginal body [" + getOriginalBodyChecksum()
-                    + "] checksums");
-        }
-    }
-
-    public void updateBodyChecksum() {
-        if (isTextContent() || isMetadataInstance()) {
-            long bodyChecksum = generateChecksum(getBody());
-            setBodyChecksum(bodyChecksum);
-        } else {
-            if (logger.isInfoEnabled()) {
-                logger.info("Getting checksum from file size for non-text component '" + getDisplayName() + "'");
-            }
-
-            // get from file bytes - typically directly from metadata result
-            if (Utils.isNotEmpty(file)) {
-                long bodyChecksum = generateChecksum(file);
-                setBodyChecksum(bodyChecksum);
-            } else if (resource != null) {
-                // if load from body, get from file resource
-                try {
-                    file = Utils.getBytesFromFile(resource);
-                    long bodyChecksum = generateChecksum(file);
-                    setBodyChecksum(bodyChecksum);
-                } catch (Exception e) {
-                    logger.warn("Unable to get checksum from file and/or resource - setting checksum value to "
-                            + INIT_CHECKSUM + " '" + getComponentType() + "'");
-                    setBodyChecksum(INIT_CHECKSUM);
-                }
-            } else {
-                setBodyChecksum(INIT_CHECKSUM);
-                logger.warn("Resource and file bytes are null - setting checksum value to " + INIT_CHECKSUM + " '"
-                        + getComponentType() + "'");
-            }
-
-        }
-
-    }
-
-    protected final long generateChecksum(String str) {
+    protected final static long generateChecksum(String str) {
         long checksumValue = 0;
         if (Utils.isNotEmpty(str)) {
             CRC32 checksum = new CRC32();
@@ -656,7 +505,7 @@ public abstract class ComponentResource implements IComponent {
         return checksumValue;
     }
 
-    protected final long generateChecksum(IFile file) {
+    protected final static long generateChecksum(IFile file) {
         long checksumValue = INIT_CHECKSUM;
         if (file != null) {
             try {
@@ -670,7 +519,7 @@ public abstract class ComponentResource implements IComponent {
         return checksumValue;
     }
 
-    protected final long generateChecksum(byte[] file) {
+    protected final static long generateChecksum(byte[] file) {
         long checksumValue = 0;
         if (Utils.isNotEmpty(file)) {
             CRC32 checksum = new CRC32();
@@ -680,7 +529,7 @@ public abstract class ComponentResource implements IComponent {
         return checksumValue;
     }
 
-    protected final byte[] compress(byte[] input) {
+    protected final static byte[] compress(byte[] input) {
         // Create the compressor with highest level of compression
         Deflater compressor = new Deflater();
         compressor.setLevel(Deflater.BEST_COMPRESSION);
@@ -693,20 +542,19 @@ public abstract class ComponentResource implements IComponent {
         // You cannot use an array that's the same size as the orginal because
         // there is no guarantee that the compressed data will be smaller than
         // the uncompressed data.
-        ByteArrayOutputStream bos = new ByteArrayOutputStream(input.length);
+        try (final QuietCloseable<ByteArrayOutputStream> c = QuietCloseable.make(new ByteArrayOutputStream(input.length))) {
+            final ByteArrayOutputStream bos = c.get();
 
-        // Compress the data
-        byte[] buf = new byte[1024];
-        while (!compressor.finished()) {
-            int count = compressor.deflate(buf);
-            bos.write(buf, 0, count);
+            // Compress the data
+            byte[] buf = new byte[1024];
+            while (!compressor.finished()) {
+                int count = compressor.deflate(buf);
+                bos.write(buf, 0, count);
+            }
+
+            // Get the compressed data
+            return bos.toByteArray();
         }
-        try {
-            bos.close();
-        } catch (IOException e) {}
-
-        // Get the compressed data
-        return bos.toByteArray();
     }
 
     protected void monitorCheck(IProgressMonitor monitor) throws InterruptedException {
@@ -718,15 +566,6 @@ public abstract class ComponentResource implements IComponent {
         }
     }
 
-    public boolean isFetchedAfter(long otherFetchDate) {
-        if (logger.isDebugEnabled()) {
-            logger.debug("Is this.fetchdate '" + (new Date(getFetchTime())).toString() + "' after other.fetchdate '"
-                    + (new Date(otherFetchDate)).toString() + "'? " + (getFetchTime() > otherFetchDate));
-        }
-
-        return getFetchTime() > otherFetchDate;
-    }
-
     /**
      * Constructs a <code>String</code> with all attributes in name = value format.
      * 
@@ -735,24 +574,24 @@ public abstract class ComponentResource implements IComponent {
     @Override
     public String toString() {
         final String TAB = ", ";
-        StringBuffer retValue = new StringBuffer();
-        retValue.append("filePath=").append(this.metadataFilePath).append(TAB).append("bodyChecksum=")
-                .append(this.bodyChecksum).append(TAB).append("originalBodyChecksum=")
-                .append(this.originalBodyChecksum).append(TAB).append("resource=")
-                .append(this.resource != null ? this.resource.getName() : null).append(TAB).append("file size=")
-                .append(this.file != null ? this.file.length : 0).append(TAB).append("fetchDate=")
-                .append((new Date(getFetchTime())).toString());
-
-        return retValue.toString();
+        return new StringBuilder()
+            .append("filePath=").append(this.metadataFilePath).append(TAB)
+            .append("bodyChecksum=").append(getBodyChecksum()).append(TAB)
+            .append("originalBodyChecksum=").append(getOriginalBodyChecksum()).append(TAB)
+            .append("resource=").append(this.resource != null ? this.resource.getName() : null).append(TAB)
+            .append("file size=").append(this.file != null ? this.file.length : 0)
+            .toString()
+            ;
     }
 
     @Override
     public String toStringLite() {
         final String TAB = ", ";
-        StringBuffer retValue = new StringBuffer();
-        retValue.append("filePath=").append(this.metadataFilePath).append(TAB).append("bodyChecksum=")
-                .append(this.bodyChecksum).append(TAB).append("originalBodyChecksum=")
-                .append(this.originalBodyChecksum);
-        return retValue.toString();
+        return new StringBuilder()
+            .append("filePath=").append(this.metadataFilePath).append(TAB)
+            .append("bodyChecksum=").append(getBodyChecksum()).append(TAB)
+            .append("originalBodyChecksum=").append(getOriginalBodyChecksum())
+            .toString()
+            ;
     }
 }

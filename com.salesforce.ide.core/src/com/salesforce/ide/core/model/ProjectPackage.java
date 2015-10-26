@@ -37,6 +37,7 @@ import com.salesforce.ide.core.factories.ComponentFactory;
 import com.salesforce.ide.core.factories.FactoryException;
 import com.salesforce.ide.core.factories.PackageManifestFactory;
 import com.salesforce.ide.core.internal.utils.Constants;
+import com.salesforce.ide.core.internal.utils.QuietCloseable;
 import com.salesforce.ide.core.internal.utils.Utils;
 import com.salesforce.ide.core.internal.utils.ZipUtils;
 import com.salesforce.ide.core.internal.utils.ZipUtils.ZipStats;
@@ -286,7 +287,7 @@ public class ProjectPackage {
 
     public void addFilePathZipMapping(String filePath, byte[] fileContent) {
         if (filePathZipMapping == null) {
-            filePathZipMapping = new HashMap<String, byte[]>();
+            filePathZipMapping = new HashMap<>();
         }
 
         filePathZipMapping.put(filePath, fileContent);
@@ -315,7 +316,7 @@ public class ProjectPackage {
     }
 
     public TreeSet<String> getSortedFilePaths() {
-        TreeSet<String> filePaths = new TreeSet<String>();
+        TreeSet<String> filePaths = new TreeSet<>();
         if (Utils.isNotEmpty(filePathZipMapping)) {
             filePaths.addAll(filePathZipMapping.keySet());
         }
@@ -328,7 +329,7 @@ public class ProjectPackage {
 
     public List<String> getFilePaths(boolean stripSourcePrefix) {
         if (filePathZipMapping != null) {
-            return new ArrayList<String>(filePathZipMapping.keySet());
+            return new ArrayList<>(filePathZipMapping.keySet());
         } else if (Utils.isNotEmpty(componentList)) {
             return componentList.getFilePaths(stripSourcePrefix);
         } else {
@@ -338,7 +339,7 @@ public class ProjectPackage {
 
     public List<String> getComponentFilePaths(boolean stripSourcePrefix) {
         if (filePathZipMapping != null) {
-            return new ArrayList<String>(filePathZipMapping.keySet());
+            return new ArrayList<>(filePathZipMapping.keySet());
         } else if (Utils.isNotEmpty(componentList)) {
             return componentList.getFilePaths(stripSourcePrefix, false);
         } else {
@@ -434,36 +435,38 @@ public class ProjectPackage {
             return zipAsBytes;
         }
 
-        // streams to contain components
-        ByteArrayOutputStream bos = new ByteArrayOutputStream();
-        ZipOutputStream zos = new ZipOutputStream(bos);
+        try (final QuietCloseable<ByteArrayOutputStream> c0 = QuietCloseable.make(new ByteArrayOutputStream())) {
+            final ByteArrayOutputStream bos = c0.get();
 
-        // new zip stats to gather info about zip
-        ZipStats stats = new ZipStats();
+            // new zip stats to gather info about zip
+            ZipStats stats = new ZipStats();
 
-        // add each component in component list to zip
-        for (Component component : componentList) {
-            if (manifestsOnly && !component.isPackageManifest()) {
-                continue;
+            try (final QuietCloseable<ZipOutputStream> c = QuietCloseable.make(new ZipOutputStream(bos))) {
+                final ZipOutputStream zos = c.get();
+
+                // add each component in component list to zip
+                for (Component component : componentList) {
+                    if (manifestsOnly && !component.isPackageManifest()) {
+                        continue;
+                    }
+
+                    IFile file = component.getFileResource();
+                    IPath path = file.getFullPath();
+                    stats.addStats(ZipUtils.zipFile(file.getProjectRelativePath().toPortableString(), path.toFile(),
+                        zos, Integer.MAX_VALUE));
+                }
             }
 
-            IFile file = component.getFileResource();
-            IPath path = file.getFullPath();
-            stats.addStats(ZipUtils.zipFile(file.getProjectRelativePath().toPortableString(), path.toFile(), zos,
-                Integer.MAX_VALUE));
-        }
+            zipAsBytes = bos.toByteArray();
 
-        // close zip stream and get bytes
-        zos.close();
-        zipAsBytes = bos.toByteArray();
-
-        if (logger.isDebugEnabled()) {
-            logger.debug(stats.toString());
+            if (logger.isDebugEnabled()) {
+                logger.debug(stats.toString());
+            }
+            return zipAsBytes;
         }
-        return zipAsBytes;
     }
 
-    private byte[] getZipRoot(boolean manifestsOnly) throws IOException {
+    private static byte[] getZipRoot(boolean manifestsOnly) {
         byte[] zipAsBytes = null;
         return zipAsBytes;
     }
@@ -518,10 +521,10 @@ public class ProjectPackage {
 
             if (stats != null) {
                 stats.addStats(tmpStats);
-            }
 
-            if (logger.isDebugEnabled()) {
-                logger.debug("Updated zip stats:\n" + stats.toString());
+                if (logger.isDebugEnabled()) {
+                    logger.debug("Updated zip stats:\n" + stats.toString());
+                }
             }
         }
 
@@ -558,10 +561,10 @@ public class ProjectPackage {
 
         if (stats != null) {
             stats.addStats(tmpStats);
-        }
 
-        if (logger.isDebugEnabled()) {
-            logger.debug("Updated zip stats:\n" + stats.toString());
+            if (logger.isDebugEnabled()) {
+                logger.debug("Updated zip stats:\n" + stats.toString());
+            }
         }
     }
 
@@ -609,15 +612,15 @@ public class ProjectPackage {
                     logger.warn("Component composite file not found at filepath '" + compositeComponentFilePath
                             + "' for component " + component.getFullDisplayName());
 
-                    compositeComponent = getComponentFactory().getCompositeComponentFromComponent(component, false);
+                    compositeComponent = getComponentFactory().getCompositeComponentFromComponent(component);
                 } else {
                     // create composite instance for object type
                     compositeComponent = getComponentFactory().getComponentFromFile(compositeComponentFile);
                 }
 
                 if (compositeComponent == null) {
-                    logger.warn("Component metadata not created for '"
-                            + compositeComponentFile.getProjectRelativePath().toPortableString() + "' for component "
+                    final String path = null == compositeComponentFile ? "" : compositeComponentFile.getProjectRelativePath().toPortableString();
+                    logger.warn("Component metadata not created for '" + path + "' for component "
                             + component.getFullDisplayName());
                     return;
                 }

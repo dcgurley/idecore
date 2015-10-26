@@ -25,6 +25,7 @@ import com.salesforce.ide.core.internal.controller.Controller;
 import com.salesforce.ide.core.internal.utils.Constants;
 import com.salesforce.ide.core.internal.utils.ForceExceptionUtils;
 import com.salesforce.ide.core.internal.utils.Utils;
+import com.salesforce.ide.core.model.Component;
 import com.salesforce.ide.core.project.ForceProject;
 import com.salesforce.ide.core.project.ForceProjectException;
 import com.salesforce.ide.core.remote.Connection;
@@ -46,7 +47,7 @@ public class ReplaceRunningUserController extends Controller {
     private DeploymentComponentSet replaceRunningUserSet;
     private final DeploymentController deploymentController;
 
-    public ReplaceRunningUserController(DeploymentController deploymentController) throws ForceProjectException {
+    public ReplaceRunningUserController(DeploymentController deploymentController) {
         super();
         this.deploymentController = deploymentController;
     }
@@ -68,6 +69,7 @@ public class ReplaceRunningUserController extends Controller {
         IProgressService service = PlatformUI.getWorkbench().getProgressService();
         try {
             service.run(false, true, new IRunnableWithProgress() {
+                @Override
                 public void run(IProgressMonitor monitor) throws InvocationTargetException, InterruptedException {
                     monitor.beginTask("Validating runningUser for dashboard components...", 3);
                     try {
@@ -135,11 +137,14 @@ public class ReplaceRunningUserController extends Controller {
             return false;
         }
 
+        final String username = getDestinationOrgUsername();
         for (DeploymentComponent replaceRunningUser : replaceRunningUserSet) {
-            String replaced =
-                    replaceRunningUser.getComponent().getBody().replaceAll("<runningUser>.*</runningUser>",
-                        "<runningUser>" + getDestinationOrgUsername() + "</runningUser>");
-            replaceRunningUser.getComponent().setBody(replaced);
+            final Component component = replaceRunningUser.getComponent();
+            String replaced = component.getBody().replaceAll(
+                "<runningUser>.*</runningUser>",
+                "<runningUser>" + username + "</runningUser>"
+            );
+            component.setBody(replaced);
         }
         return true;
     }

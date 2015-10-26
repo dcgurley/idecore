@@ -18,15 +18,14 @@ import org.eclipse.core.resources.IResource;
 import org.eclipse.core.runtime.CoreException;
 import org.eclipse.core.runtime.IProgressMonitor;
 import org.eclipse.core.runtime.NullProgressMonitor;
-import org.eclipse.jface.action.IAction;
 import org.eclipse.jface.wizard.WizardDialog;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.salesforce.ide.core.factories.FactoryException;
 import com.salesforce.ide.core.internal.utils.Constants;
 import com.salesforce.ide.core.internal.utils.ForceExceptionUtils;
 import com.salesforce.ide.core.internal.utils.Utils;
 import com.salesforce.ide.core.model.ProjectPackageList;
-import com.salesforce.ide.core.project.ForceProjectException;
 import com.salesforce.ide.core.project.MarkerUtils;
 import com.salesforce.ide.core.remote.ForceConnectionException;
 import com.salesforce.ide.core.remote.ForceRemoteException;
@@ -45,7 +44,7 @@ public class SaveToServerActionController extends ActionController {
     protected DeployResultExt deployResultExt = null;
 
     //   C O N S T R U C T O R
-    public SaveToServerActionController() throws ForceProjectException {
+    public SaveToServerActionController() {
         super();
     }
 
@@ -60,7 +59,7 @@ public class SaveToServerActionController extends ActionController {
     }
 
     @Override
-    public boolean preRun(IAction action) {
+    public boolean preRun() {
         if (Utils.isEmpty(selectedResources)) {
             logger.info("Operation cancelled.  Resources not provided.");
             return false;
@@ -84,9 +83,8 @@ public class SaveToServerActionController extends ActionController {
             return false;
         }
 
-        boolean response =
-                Utils.openQuestion(getProject(), workbenchWindow.getShell(), "Confirm Save", UIMessages
-                    .getString("SaveToServerAction.Overwrite.message"));
+        boolean response = getUserConfirmation();
+
         if (!response) {
             if (logger.isInfoEnabled()) {
                 logger.info("Save to server cancelled by user");
@@ -95,7 +93,7 @@ public class SaveToServerActionController extends ActionController {
         }
 
         try {
-            projectPackageList = getProjectService().getProjectContents(selectedResources, new NullProgressMonitor());
+            projectPackageList = getProjectPackageList();
             projectPackageList.setProject(project);
         } catch (FactoryException e) {
             logger.error("Unable to prepare project package list for resources", e);
@@ -124,9 +122,7 @@ public class SaveToServerActionController extends ActionController {
     }
 
     @Override
-    public void postRun(IAction action) {
-
-    }
+    public void postRun() {}
 
     private boolean deploy(IProgressMonitor monitor) throws ForceConnectionException, FactoryException,
     InterruptedException, CoreException, IOException, ServiceException, ForceRemoteException,
@@ -159,7 +155,8 @@ public class SaveToServerActionController extends ActionController {
         return deployOptions;
     }
 
-    private boolean checkForDirtyResources() {
+    @VisibleForTesting
+    protected boolean checkForDirtyResources() {
         if (Utils.isEmpty(selectedResources)) {
             logger.info("Operation cancelled.  Resources not provided.");
             return false;
@@ -178,5 +175,15 @@ public class SaveToServerActionController extends ActionController {
         }
 
         return true;
+    }
+    
+    @VisibleForTesting
+    protected boolean getUserConfirmation() {
+    	return Utils.openQuestion(getProject(), getShell(), "Confirm Save", UIMessages.getString("SaveToServerHandler.Overwrite.message"));
+    }
+    
+    @VisibleForTesting
+    protected ProjectPackageList getProjectPackageList() throws CoreException, InterruptedException, FactoryException {
+    	return getProjectService().getProjectContents(selectedResources, new NullProgressMonitor());
     }
 }

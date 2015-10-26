@@ -23,6 +23,8 @@ import com.salesforce.ide.core.factories.FactoryException;
 import com.salesforce.ide.core.internal.components.ComponentModel;
 import com.salesforce.ide.core.internal.utils.Constants;
 import com.salesforce.ide.core.internal.utils.Utils;
+import com.salesforce.ide.core.remote.ForceConnectionException;
+import com.salesforce.ide.core.remote.ForceRemoteException;
 import com.salesforce.ide.core.remote.registries.DescribeObjectRegistry;
 import com.sforce.soap.partner.wsc.DescribeSObjectResult;
 import com.sforce.soap.partner.wsc.Field;
@@ -53,15 +55,13 @@ public class ReportTypeModel extends ComponentModel {
             // BaseObject here is plural form save from user inpurt in Ui
             primaryObject =
                     describeObjectRegistry.getCachedDescribeByPluralLabel(getProject(), reportType.getBaseObject());
-        } catch (InstantiationException e) {
-            logger.warn("Unable to instantiate default metadataExt instance for Report Type", e);
-        } catch (IllegalAccessException e) {
-            logger.warn("Unable to instantiate default metadataExt instance for Report Type", e);
-        } catch (Exception e) {
+        } catch (ForceConnectionException e) {
+            logger.warn("Unable to get describeObject for " + reportType.getBaseObject(), e);
+        } catch (ForceRemoteException e) {
             logger.warn("Unable to get describeObject for " + reportType.getBaseObject(), e);
         }
 
-        if (Utils.isEmpty(primaryObject)) {
+        if (null == primaryObject) {
             logger.error("Unable to load additional component attributes for Report Type '" + reportType.getLabel()
                     + "' due to unable to locate primary object '" + reportType.getBaseObject()
                     + "' from DescribeObjectRegistry");
@@ -72,7 +72,7 @@ public class ReportTypeModel extends ComponentModel {
         section.setMasterLabel(primaryObject.getLabelPlural()); // Master label is plural label of describeObject
 
         // exclude fields that describeSObject returned as extra: default + sobject specific set.
-        List<String> excludeFieldList = new ArrayList<String>();
+        List<String> excludeFieldList = new ArrayList<>();
         List<String> defaultExcludeFieldList =
                 describeObjectRegistry.getExcludedCrtFields().get(DEFAULT_EXCLUDED_FIELD_KEY);
         excludeFieldList.addAll(defaultExcludeFieldList);

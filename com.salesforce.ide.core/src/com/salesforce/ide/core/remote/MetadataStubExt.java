@@ -24,7 +24,6 @@ import org.eclipse.core.runtime.NullProgressMonitor;
 
 import com.google.common.base.Function;
 import com.google.common.collect.Lists;
-import com.salesforce.ide.core.factories.FactoryException;
 import com.salesforce.ide.core.internal.context.ContainerDelegate;
 import com.salesforce.ide.core.internal.utils.Constants;
 import com.salesforce.ide.core.internal.utils.ForceExceptionUtils;
@@ -131,7 +130,7 @@ public class MetadataStubExt {
 
         //Does this do the same thing as below? if we even need it.
         DebuggingHeader_element header = metadataConnection.getDebuggingHeader();
-        Map<String, LogInfo> logInfoMap = new HashMap<String, LogInfo>();
+        Map<String, LogInfo> logInfoMap = new HashMap<>();
         //Add old headers
         if(header!=null){
             for (LogInfo info : header.getCategories()) {
@@ -200,7 +199,7 @@ public class MetadataStubExt {
 
         RetrieveResult retrieveResult = null;
         try {
-            retrieveResult = metadataConnection.checkRetrieveStatus(asyncProcessId);
+            retrieveResult = metadataConnection.checkRetrieveStatus(asyncProcessId, true);
         } catch (ConnectionException e) {
             ForceExceptionUtils.throwTranslatedException(e, connection);
         }
@@ -292,7 +291,7 @@ public class MetadataStubExt {
         
         //break request into 3 queries per api call (api constraint)
         final int QUERIES_PER_CALL = 3;
-        List<FileProperties> filePropertiesList = new ArrayList<FileProperties>();
+        List<FileProperties> filePropertiesList = new ArrayList<>();
         try {
 	        for (List<ListMetadataQuery> queries : Lists.partition(allQueries, QUERIES_PER_CALL)) {
 	            try {
@@ -319,14 +318,14 @@ public class MetadataStubExt {
 			@Override
             public String apply(DescribeMetadataObject metadataObject) { return metadataObject.getXmlName(); }
 		};
-    	HashSet<String> supportedNames = new HashSet<String>();
+    	HashSet<String> supportedNames = new HashSet<>();
 		supportedNames.addAll(Lists.transform(metadataObjects, metadataObjectToName));
 		return supportedNames;
     }
 
     public Set<String> getSupportedMetadataComponents() throws ForceRemoteException {
     	List<DescribeMetadataObject> metadataObjects = Lists.newArrayList(describeMetadata().getMetadataObjects());
-    	HashSet<String> supportedNames = new HashSet<String>();
+    	HashSet<String> supportedNames = new HashSet<>();
     	for (DescribeMetadataObject object : metadataObjects) {
     		String name = object.getXmlName();
 
@@ -337,12 +336,8 @@ public class MetadataStubExt {
             }
 			
     		Component component = null;
-			try {
-				component = ContainerDelegate.getInstance().getFactoryLocator().getComponentFactory()
-                        .getComponentByComponentType(name);
-			} catch (FactoryException e) {
-				//If an exception is thrown, it isn't supported
-			}
+			component = ContainerDelegate.getInstance().getFactoryLocator().getComponentFactory()
+                    .getComponentByComponentType(name);
 			//Check the md folder in the bean
 			if (component != null && object.isInFolder()) {
 				supportedNames.add(component.getFolderNameIfFolderTypeMdComponent());
@@ -354,7 +349,7 @@ public class MetadataStubExt {
 	private List<FileProperties> tryOneByOne(List<ListMetadataQuery> queries,
 			IProgressMonitor monitor) throws MonitorCanceledException,
 			ForceRemoteException {
-		List<FileProperties> filePropertiesSubList = new ArrayList<FileProperties>();
+		List<FileProperties> filePropertiesSubList = new ArrayList<>();
 		for (List<ListMetadataQuery> listofOneQuery : Lists.partition(Lists.newArrayList(queries), 1)) {
 			try {
 				filePropertiesSubList.addAll(getFileProperties(listofOneQuery, monitor));
@@ -372,7 +367,7 @@ public class MetadataStubExt {
 		return filePropertiesSubList;
 	}
 
-	private void logTimeout(ListMetadataQuery query) {
+	private static void logTimeout(ListMetadataQuery query) {
 		logger.warn("Timeout while retrying to retrieve listMetadata for for component type "
 		                + query.getType()
 		                + (Utils.isNotEmpty(query.getFolder()) ? "[" + query.getFolder() + "]" : "")
@@ -410,20 +405,20 @@ public class MetadataStubExt {
 		return new Double(connection.getSalesforceEndpoints().getDefaultApiVersion());
 	}
 
-	private void checkMonitorIsCanceled(IProgressMonitor monitor) throws MonitorCanceledException {
+	private static void checkMonitorIsCanceled(IProgressMonitor monitor) throws MonitorCanceledException {
 		if (monitor.isCanceled()) {
 			throw new MonitorCanceledException();
 		}
 	}
 
-	private ArrayList<FileProperties> arrayToList(
+	private static ArrayList<FileProperties> arrayToList(
 			FileProperties[] tmpFileProperties) {
 		return tmpFileProperties == null ? Lists.<FileProperties>newArrayList() : Lists.newArrayList(tmpFileProperties);
 	}
 
-	private String getMonitorMessage(List<ListMetadataQuery> tmpListMetadataQueryList) {
+	private static String getMonitorMessage(List<ListMetadataQuery> tmpListMetadataQueryList) {
         final StringBuffer strBuff = new StringBuffer();
-        Set<String> componentTypes = new HashSet<String>();
+        Set<String> componentTypes = new HashSet<>();
         for (Iterator<ListMetadataQuery> iterator = tmpListMetadataQueryList.iterator(); iterator.hasNext();) {
             ListMetadataQuery listMetadataQuery = iterator.next();
             if (Utils.isNotEmpty(listMetadataQuery.getFolder())) {
@@ -443,7 +438,7 @@ public class MetadataStubExt {
         return strBuff.toString() + "...";
 	}
 
-	private void logQueries(List<ListMetadataQuery> tmpListMetadataQueryList) {
+	private static void logQueries(List<ListMetadataQuery> tmpListMetadataQueryList) {
 		if (logger.isDebugEnabled()) {
 			StringBuffer strBuff = new StringBuffer();
 			for (Iterator<ListMetadataQuery> iterator = tmpListMetadataQueryList.iterator(); iterator.hasNext();) {

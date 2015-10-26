@@ -27,7 +27,6 @@ import org.w3c.dom.Document;
 
 import com.salesforce.ide.api.metadata.types.Package;
 import com.salesforce.ide.api.metadata.types.PackageTypeMembers;
-import com.salesforce.ide.core.factories.FactoryException;
 import com.salesforce.ide.core.factories.FactoryLocator;
 import com.salesforce.ide.core.factories.PackageManifestFactory;
 import com.salesforce.ide.core.internal.utils.Constants;
@@ -79,7 +78,7 @@ public class ProjectContentSummaryAssembler {
     }
 
     public List<String> generateSummaryText(PackageManifestModel packageManifestModel, boolean augmentWithCache) {
-        List<String> summaries = new ArrayList<String>();
+        List<String> summaries = new ArrayList<>();
         if (packageManifestModel == null || packageManifestModel.getManifestDocument() == null) {
             summaries.add(Messages.getString("ProjectCreateWizard.ProjectContent.ContentSummary.NoContent.message"));
             return summaries;
@@ -109,12 +108,7 @@ public class ProjectContentSummaryAssembler {
         // exclude custom/standard object sub component types, eg CustomFields,
         // which are placed on their parents
         // TODO: handle other subtypes, Workflow-WorkflowAlert
-        List<String> childComponentTypes = null;
-        try {
-            childComponentTypes = factoryLocator.getComponentFactory().getSubComponentTypes(Constants.CUSTOM_OBJECT);
-        } catch (FactoryException e) {
-            logger.warn("Unable to get sub component types for '" + Constants.CUSTOM_OBJECT + "'", e);
-        }
+        List<String> childComponentTypes = factoryLocator.getComponentFactory().getSubComponentTypes(Constants.CUSTOM_OBJECT);
 
         // for each type, loop thru constructing summary stanza
         factoryLocator.getPackageManifestFactory().sort(types);
@@ -123,12 +117,8 @@ public class ProjectContentSummaryAssembler {
         for (PackageTypeMembers typeStanza : types) {
             // get component for display name purposes
             Component component = null;
-            try {
-                if (factoryLocator.getComponentFactory().isRegisteredComponentType(typeStanza.getName())) {
-                    component = factoryLocator.getComponentFactory().getComponentByComponentType(typeStanza.getName());
-                }
-            } catch (FactoryException e) {
-                logger.warn("Unable to get component for component type '" + typeStanza.getName() + "'", e);
+            if (factoryLocator.getComponentFactory().isRegisteredComponentType(typeStanza.getName())) {
+                component = factoryLocator.getComponentFactory().getComponentByComponentType(typeStanza.getName());
             }
 
             // if display name not available, use type name
@@ -154,7 +144,7 @@ public class ProjectContentSummaryAssembler {
                 StringBuffer summary = new StringBuffer();
 
                 // no parent-child relationship, handle normally
-                Set<String> members = new TreeSet<String>(String.CASE_INSENSITIVE_ORDER);
+                Set<String> members = new TreeSet<>(String.CASE_INSENSITIVE_ORDER);
                 members.addAll(typeStanza.getMembers());
                 // if members contain "*", add org members to display all
                 // content to be retrieved
@@ -207,7 +197,7 @@ public class ProjectContentSummaryAssembler {
                 if (cacheManifestComponentType != null) {
                     // augment project manifest content for type w/ cache
                     // content
-                    Set<String> tmpProjectManifestComponentMembers = new HashSet<String>();
+                    Set<String> tmpProjectManifestComponentMembers = new HashSet<>();
                     tmpProjectManifestComponentMembers.addAll(projectPackageComponentType.getMembers());
                     tmpProjectManifestComponentMembers.addAll(cacheManifestComponentType.getMembers());
                     projectPackageComponentType.getMembers().clear();
@@ -219,7 +209,7 @@ public class ProjectContentSummaryAssembler {
         return packageManifest;
     }
 
-    private PackageTypeMembers getPackageTypeMembers(PackageTypeMembers projectPackageComponentType,
+    private static PackageTypeMembers getPackageTypeMembers(PackageTypeMembers projectPackageComponentType,
             Package cachePackageManifest) {
         for (PackageTypeMembers cachePackageComponentType : cachePackageManifest.getTypes()) {
             if (projectPackageComponentType.getName().equals(cachePackageComponentType.getName())) {
@@ -260,7 +250,7 @@ public class ProjectContentSummaryAssembler {
                     + typeStanza.getMembers().size() + "] components");
         }
 
-        Set<String> members = new TreeSet<String>(String.CASE_INSENSITIVE_ORDER);
+        Set<String> members = new TreeSet<>(String.CASE_INSENSITIVE_ORDER);
         members.addAll(typeStanza.getMembers());
 
         // custom objects require additional validation to differentiate between standard v. custom objects
@@ -275,26 +265,21 @@ public class ProjectContentSummaryAssembler {
             summaries.add(customObjectSummary + Constants.NEW_LINE);
         }
 
-        // handle standard objects - displayed right after custom objects
-        try {
-            Component standardObjectComponent =
-                    factoryLocator.getComponentFactory().getComponentByComponentType(Constants.STANDARD_OBJECT);
-            if (standardObjectComponent != null) {
-                String standardObjectSummary =
-                        generateObjectChildrenSummary(standardObjectComponent, typeStanza, packageManifestModel,
-                            packageManifest, getStandardObjectComponentValidator());
+        Component standardObjectComponent =
+                factoryLocator.getComponentFactory().getComponentByComponentType(Constants.STANDARD_OBJECT);
+        if (standardObjectComponent != null) {
+            String standardObjectSummary =
+                    generateObjectChildrenSummary(standardObjectComponent, typeStanza, packageManifestModel,
+                        packageManifest, getStandardObjectComponentValidator());
 
-                // append standard object summary to just after custom object
-                if (standardObjectSummary.length() > 0) {
-                    if (logger.isDebugEnabled()) {
-                        logger.debug("Generated the following content summary:" + Constants.NEW_LINE
-                                + standardObjectSummary);
-                    }
-                    summaries.add(standardObjectSummary + Constants.NEW_LINE);
+            // append standard object summary to just after custom object
+            if (standardObjectSummary.length() > 0) {
+                if (logger.isDebugEnabled()) {
+                    logger.debug("Generated the following content summary:" + Constants.NEW_LINE
+                            + standardObjectSummary);
                 }
+                summaries.add(standardObjectSummary + Constants.NEW_LINE);
             }
-        } catch (FactoryException e) {
-            logger.warn("Unable to get summary text for type '" + Constants.STANDARD_OBJECT + "'");
         }
 
     }
@@ -314,7 +299,7 @@ public class ProjectContentSummaryAssembler {
             return;
         }
 
-        Set<String> members = new TreeSet<String>(String.CASE_INSENSITIVE_ORDER);
+        Set<String> members = new TreeSet<>(String.CASE_INSENSITIVE_ORDER);
         for (String typeMember : typeMembers) {
             if (!hasParentInManifest(typeMember, packageManifest)) {
                 members.add(typeMember);
@@ -373,7 +358,7 @@ public class ProjectContentSummaryAssembler {
      * @return
      */
     public List<String> generateSummaryText(FileMetadataExt fileMetadata, String[] componentTypes, boolean subscribe) {
-        List<String> summaries = new ArrayList<String>();
+        List<String> summaries = new ArrayList<>();
 
         if (componentTypes == null && fileMetadata != null) {
             Set<String> componentTypesSet = fileMetadata.getComponentTypes();
@@ -382,18 +367,14 @@ public class ProjectContentSummaryAssembler {
             }
         }
 
-        if (fileMetadata == null || !fileMetadata.hasFileProperties() || Utils.isEmpty(componentTypes)) {
+        if (fileMetadata == null || !fileMetadata.hasFileProperties() || null == componentTypes || 0 == componentTypes.length) {
             return summaries;
         }
 
         // exclude custom/standard object sub component types, eg CustomFields,
         // which are placed on their parents
         List<String> childComponentTypes = null;
-        try {
-            childComponentTypes = factoryLocator.getComponentFactory().getSubComponentTypes(Constants.CUSTOM_OBJECT);
-        } catch (FactoryException e) {
-            logger.warn("Unable to get sub component types for '" + Constants.CUSTOM_OBJECT + "'", e);
-        }
+        childComponentTypes = factoryLocator.getComponentFactory().getSubComponentTypes(Constants.CUSTOM_OBJECT);
 
         // go... assemble tree string for each given type
         Arrays.sort(componentTypes);
@@ -405,15 +386,11 @@ public class ProjectContentSummaryAssembler {
             }
 
             Component component = null;
-            try {
-                if (factoryLocator.getComponentFactory().isRegisteredComponentType(componentType)) {
-                    component = factoryLocator.getComponentFactory().getComponentByComponentType(componentType);
-                }
-            } catch (FactoryException e) {
-                logger.warn("Unable to get component for component type '" + componentType + "'", e);
+            if (factoryLocator.getComponentFactory().isRegisteredComponentType(componentType)) {
+                component = factoryLocator.getComponentFactory().getComponentByComponentType(componentType);
             }
 
-            Set<String> members = new TreeSet<String>(String.CASE_INSENSITIVE_ORDER);
+            Set<String> members = new TreeSet<>(String.CASE_INSENSITIVE_ORDER);
             String name = componentType;
             if (component == null) {
                 name = componentType;
@@ -523,7 +500,7 @@ public class ProjectContentSummaryAssembler {
 
         // pre-fetch the package stanza for each sub type to reduce looping thru
         // types superfluously
-        Map<String, List<String>> componentTypeMemberMap = new HashMap<String, List<String>>(subComponentTypes.size());
+        Map<String, List<String>> componentTypeMemberMap = new HashMap<>(subComponentTypes.size());
         for (String subComponentType : subComponentTypes) {
             if (parentComponentNames.contains(Constants.SUBSCRIBE_TO_ALL)
                     && packageManifestModel.getFileMetadatExt() != null) {
@@ -548,7 +525,7 @@ public class ProjectContentSummaryAssembler {
     protected List<String> getParentCustomObjectNames(Component component, PackageTypeMembers typeStanza,
             FileMetadataExt fileMetadatExt) {
         final List<String> members = typeStanza.getMembers();
-        List<String> parentComponentNames = new ArrayList<String>(members);
+        List<String> parentComponentNames = new ArrayList<>(members);
 
 
         if (parentComponentNames.contains(Constants.SUBSCRIBE_TO_ALL)
@@ -626,7 +603,7 @@ public class ProjectContentSummaryAssembler {
         return summary.toString();
     }
 
-    private String getDisplayName(Component component, boolean appendSubscribeText) {
+    private static String getDisplayName(Component component, boolean appendSubscribeText) {
         String displayName = null;
         final String type = component.getComponentType();
         if (Constants.CUSTOM_OBJECT.equals(type)
@@ -648,7 +625,7 @@ public class ProjectContentSummaryAssembler {
         return displayName;
     }
 
-    private PackageTypeMembers getPackageTypeMembers(Package packageManifest, String typeName) {
+    private static PackageTypeMembers getPackageTypeMembers(Package packageManifest, String typeName) {
         List<PackageTypeMembers> types = packageManifest.getTypes();
         for (PackageTypeMembers type : types) {
             if (typeName.equals(type.getName())) {
@@ -659,7 +636,7 @@ public class ProjectContentSummaryAssembler {
         return null;
     }
 
-    private String getSummaryIndention(int num) {
+    private static String getSummaryIndention(int num) {
         StringBuffer summary = new StringBuffer(SUMMARY_INDENTION);
         if (num > 1) {
             for (int i = 1; i < num; i++) {

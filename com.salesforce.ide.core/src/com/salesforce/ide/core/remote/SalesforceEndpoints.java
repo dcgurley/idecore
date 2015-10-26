@@ -38,7 +38,7 @@ public class SalesforceEndpoints {
 
     private String defaultEndpointLabel = null;
     private Map<String, String> defaultEndpointServers = null;
-    private final TreeSet<String> userEndpointServers = new TreeSet<String>();
+    private final TreeSet<String> userEndpointServers = new TreeSet<>();
     private String userEndpointsFilePath = null;
     private String endpointUrlSuffix = null;
     private String defaultApiVersion = null;
@@ -119,7 +119,7 @@ public class SalesforceEndpoints {
     }
 
     public TreeSet<String> getAllEndpointServers() {
-        TreeSet<String> endpointServers = new TreeSet<String>();
+        TreeSet<String> endpointServers = new TreeSet<>();
         if (Utils.isNotEmpty(defaultEndpointServers)) {
             for (Object endpoint : defaultEndpointServers.values()) {
                 endpointServers.add((String) endpoint);
@@ -144,9 +144,9 @@ public class SalesforceEndpoints {
         try {
             File temp = new File(userEndpointsFilePath);
             if (temp.exists()) {
-                BufferedReader buffReader = new BufferedReader(new FileReader(userEndpointsFilePath));
-                loadEndpoints(buffReader);
-                buffReader.close();
+                try (final BufferedReader buffReader = new BufferedReader(new FileReader(userEndpointsFilePath))) {
+                    loadEndpoints(buffReader);
+                }
             }
         } catch (FileNotFoundException e) {
             logger.warn("Unable to load user endpoints from file '" + userEndpointsFilePath + "'", e);
@@ -195,9 +195,9 @@ public class SalesforceEndpoints {
                 return;
             }
 
-            BufferedWriter out = new BufferedWriter(writer);
-            out.write(endpoint + System.getProperty("line.separator"));
-            out.close();
+            try (final BufferedWriter out = new BufferedWriter(writer)) {
+                out.write(endpoint + System.getProperty("line.separator"));
+            }
             if (logger.isDebugEnabled()) {
                 logger.debug("Added new user defined endpoint '" + endpoint + "' to file '" + userEndpointsFilePath
                         + "'");

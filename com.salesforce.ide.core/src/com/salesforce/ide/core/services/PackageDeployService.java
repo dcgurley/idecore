@@ -38,6 +38,7 @@ import com.sforce.soap.metadata.DeployOptions;
 import com.sforce.soap.metadata.DeployResult;
 import com.sforce.soap.metadata.DeployStatus;
 import com.sforce.soap.metadata.LogInfo;
+import com.sforce.soap.metadata.TestLevel;
 
 public class PackageDeployService extends BasePackageService {
     private static final Logger logger = Logger.getLogger(PackageDeployService.class);
@@ -60,20 +61,20 @@ public class PackageDeployService extends BasePackageService {
      * @param checkOnly
      * 
      * @return
-     * @throws ForceConnectionException
      */
-    public DeployOptions getDeployOptions(boolean checkOnly) throws ForceConnectionException {
+    public DeployOptions getDeployOptions(boolean checkOnly) {
         DeployOptions deployOptions = makeDefaultDeployOptions(checkOnly);
         deployOptions.setRollbackOnError(true);
         deployOptions.setAutoUpdatePackage(false);
         deployOptions.setPerformRetrieve(false);
-        deployOptions.setRunAllTests(false);
         return deployOptions;
     }
 
     public DeployOptions getRunTestDeployOptions(String[] tests) {
         DeployOptions deployOptions = makeDefaultDeployOptions(true);
+        deployOptions.setTestLevel(TestLevel.RunSpecifiedTests);
         deployOptions.setPerformRetrieve(false);
+        deployOptions.setTestLevel(TestLevel.RunSpecifiedTests);
 
         if (Utils.isNotEmpty(tests)) {
             deployOptions.setRunTests(tests);
@@ -101,7 +102,6 @@ public class PackageDeployService extends BasePackageService {
         //   to compile (for example, the whole lot will fail to save).
         deployOptions.setRollbackOnError(true);
         deployOptions.setCheckOnly(checkOnly);
-        deployOptions.setRunAllTests(false);
         deployOptions.setSinglePackage(true);
         return deployOptions;
     }
@@ -125,7 +125,7 @@ public class PackageDeployService extends BasePackageService {
     }
 
     public DeployResultExt deploy(Connection connection, ProjectPackageList projectPackageList, IProgressMonitor monitor)
-            throws ServiceException, ForceRemoteException, InterruptedException, ForceConnectionException {
+            throws ServiceException, ForceRemoteException, InterruptedException {
         if (connection == null || Utils.isEmpty(projectPackageList)) {
             throw new IllegalArgumentException("Connection and/or project package list cannot be null");
         }
@@ -140,7 +140,7 @@ public class PackageDeployService extends BasePackageService {
     }
 
     public DeployResultExt deploy(Connection connection, byte[] zipFile, IProgressMonitor monitor)
-            throws ServiceException, ForceRemoteException, InterruptedException, ForceConnectionException {
+            throws ServiceException, ForceRemoteException, InterruptedException {
         if (connection == null || Utils.isEmpty(zipFile)) {
             throw new IllegalArgumentException("Connection and/or file zip cannot be null");
         }
@@ -308,7 +308,7 @@ public class PackageDeployService extends BasePackageService {
     }
 
     private void adjustDeployOptions(MetadataStubExt metadataStubExt, DeployOptions deployOptions,
-            IProgressMonitor monitor) throws ForceConnectionException, ForceRemoteException, InterruptedException {
+            IProgressMonitor monitor) throws ForceRemoteException, InterruptedException {
         DescribeMetadataResultExt describeMetadataResultExt =
                 getMetadataService().getDescribeMetadata(metadataStubExt, monitor);
         // assume that org is prod
@@ -329,7 +329,7 @@ public class PackageDeployService extends BasePackageService {
         return getZip(obj, false);
     }
 
-    private byte[] getZip(Object obj, boolean manifestsOnly) throws DeployException {
+    private static byte[] getZip(Object obj, boolean manifestsOnly) throws DeployException {
         byte[] zip = null;
         try {
             if (obj instanceof ProjectPackageList) {
@@ -345,7 +345,7 @@ public class PackageDeployService extends BasePackageService {
         }
 
         if (logger.isDebugEnabled()) {
-            logger.debug("Got zip file of size [" + (Utils.isNotEmpty(zip) ? zip.length : null)
+            logger.debug("Got zip file of size [" + (null != zip ? zip.length : null)
                     + "] for project package");
         }
 
@@ -363,7 +363,6 @@ public class PackageDeployService extends BasePackageService {
                 StringBuffer strBuff = new StringBuffer("Deploy options:");
                 strBuff.append("\n  Check only = " + deployOptions.isCheckOnly())
                         .append("\n  Single package = " + deployOptions.isSinglePackage())
-                        .append("\n  Run all tests = " + deployOptions.isRunAllTests())
                         .append("\n  Update package manifest = " + deployOptions.isAutoUpdatePackage())
                         .append("\n  Save w/ missing files = " + deployOptions.isAllowMissingFiles())
                         .append("\n  Rollback on error = " + deployOptions.isRollbackOnError())
@@ -431,9 +430,9 @@ public class PackageDeployService extends BasePackageService {
  */
 class DeployResultAdapter implements IFileBasedResultAdapter {
 
-    private AsyncResult asyncResult;
+    private final AsyncResult asyncResult;
     private DeployResult deployResult;
-    private MetadataStubExt metadataStubExt;
+    private final MetadataStubExt metadataStubExt;
 
     public DeployResultAdapter(AsyncResult asyncResult, MetadataStubExt metadataStubExt) {
         this.asyncResult = asyncResult;

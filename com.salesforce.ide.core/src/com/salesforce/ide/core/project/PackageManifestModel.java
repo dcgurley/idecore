@@ -124,7 +124,7 @@ public class PackageManifestModel {
 
     public void addNodeAllSelection(String nodeName, boolean allSelected) {
         if (nodeAllSelection == null) {
-            nodeAllSelection = new HashMap<String, Boolean>();
+            nodeAllSelection = new HashMap<>();
         }
         nodeAllSelection.put(nodeName, new Boolean(allSelected));
     }
@@ -136,7 +136,7 @@ public class PackageManifestModel {
 
         // for each type stanza, check for wildcard and if found add cache names to type
         for (PackageTypeMembers updatedPackageComponentType : updatedPackageManifest.getTypes()) {
-            if (updatedPackageManifest == null || Utils.isEmpty(updatedPackageComponentType.getMembers())) {
+            if (Utils.isEmpty(updatedPackageComponentType.getMembers())) {
                 continue;
             }
 
@@ -144,7 +144,7 @@ public class PackageManifestModel {
                     getPackageTypeMembers(updatedPackageComponentType, packageManifest);
             if (manifestComponentType != null) {
                 // augment project manifest content for type w/ cache content
-                Set<String> tmpProjectManifestComponentMembers = new HashSet<String>();
+                Set<String> tmpProjectManifestComponentMembers = new HashSet<>();
                 tmpProjectManifestComponentMembers.addAll(manifestComponentType.getMembers());
                 tmpProjectManifestComponentMembers.addAll(updatedPackageComponentType.getMembers());
                 manifestComponentType.getMembers().clear();
@@ -155,7 +155,7 @@ public class PackageManifestModel {
         }
     }
 
-    private PackageTypeMembers getPackageTypeMembers(PackageTypeMembers projectPackageComponentType,
+    private static PackageTypeMembers getPackageTypeMembers(PackageTypeMembers projectPackageComponentType,
             Package cachePackageManifest) {
         for (PackageTypeMembers cachePackageComponentType : cachePackageManifest.getTypes()) {
             if (projectPackageComponentType.getName().equals(cachePackageComponentType.getName())) {

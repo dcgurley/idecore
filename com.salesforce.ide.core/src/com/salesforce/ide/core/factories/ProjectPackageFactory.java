@@ -78,7 +78,7 @@ public class ProjectPackageFactory extends BaseFactory {
     }
 
     public ProjectPackageList getProjectPackageListInstance(IProject project, byte[] zipFile,
-            FileMetadataExt fileMetadataHandler) throws FactoryException, InterruptedException, IOException {
+            FileMetadataExt fileMetadataHandler) throws InterruptedException, IOException {
         if (fileMetadataHandler == null) {
             throw new IllegalArgumentException("Project and/or FileMetadataExt cannot be null");
         }
@@ -240,7 +240,7 @@ public class ProjectPackageFactory extends BaseFactory {
         projectPackageList.setProject(file.getProject());
 
         monitorCheck(monitor);
-        Component component = getComponentFactory().getComponentFromFile(file, true);
+        Component component = getComponentFactory().getComponentFromFile(file);
         if (component == null) {
             logger.warn("File '" + file.getProjectRelativePath().toPortableString()
                     + "' not supported by copy refactoring");
